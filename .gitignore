@@ -138,3 +138,12 @@ javascript/**/target/
 javascript/**/dist/
 javascript/native/*.node
 javascript/native/build/
+
+# Temporary build scripts for fork development
+.TempBuild/
+
+# Dev utilities (contains credentials)
+devutils/
+
+# Snowflake test configuration (contains credentials)
+csharp/test/Drivers/Snowflake/snowflake-test-config.json
