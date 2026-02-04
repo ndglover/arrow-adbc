@@ -198,5 +198,5 @@ This document specifies the requirements for implementing a native C# Snowflake 
 2. THE Snowflake_Driver SHALL include appropriate Apache license headers in all source files
 3. THE Snowflake_Driver SHALL follow semantic versioning for releases
 4. THE Snowflake_Driver SHALL include contribution guidelines following Apache project standards
-5. THE Snowflake_Driver SHALL support the same platforms as other ADBC C# drivers
+5. THE Snowflake_Driver SHALL target .NET 8.0 as the minimum supported platform
 6. THE Snowflake_Driver SHALL maintain backward compatibility with existing ADBC applications

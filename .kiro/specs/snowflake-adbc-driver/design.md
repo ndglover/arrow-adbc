@@ -579,7 +579,7 @@ Based on the requirements analysis, the following correctness properties ensure 
 **Validates: Requirements 11.4**
 
 ### Property 25: Platform Compatibility
-*For any* supported platform, the driver should provide identical functionality and behavior across all platform implementations.
+*For any* supported platform, the driver should provide identical functionality and behavior on .NET 8.0.
 **Validates: Requirements 14.5**
 
 ### Property 26: Backward Compatibility
