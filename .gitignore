@@ -128,3 +128,5 @@ target/
 # Meson subproject support
 /c/subprojects/*
 !/c/subprojects/*.wrap
+# Temporary build scripts for fork development
+.TempBuild/

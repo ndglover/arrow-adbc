@@ -1,0 +1,110 @@
+# Custom release workflow for Neil's fork
+name: Custom Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version_suffix:
+        description: 'Version suffix (e.g., neil-dev, alpha1, beta2)'
+        required: true
+        default: 'neil-dev'
+        type: string
+      create_packages:
+        description: 'Create NuGet packages'
+        required: true
+        type: boolean
+        default: true
+      push_to_github:
+        description: 'Push packages to GitHub Packages'
+        required: true
+        type: boolean
+        default: false
+
+concurrency:
+  group: ${{ github.repository }}-${{ github.ref }}-custom-release
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  packages: write
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  custom-build:
+    name: "Custom C# Build"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Show build info
+        run: |
+          echo "Version suffix: ${{ inputs.version_suffix }}" >> $GITHUB_STEP_SUMMARY
+          echo "Create packages: ${{ inputs.create_packages }}" >> $GITHUB_STEP_SUMMARY
+          echo "Push to GitHub: ${{ inputs.push_to_github }}" >> $GITHUB_STEP_SUMMARY
+          echo "Repository: ${{ github.repository }}" >> $GITHUB_STEP_SUMMARY
+          echo "Branch: ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
+
+      - name: Build and test
+        run: |
+          cd csharp
+          dotnet clean -c Release
+          dotnet build -c Release --version-suffix "${{ inputs.version_suffix }}"
+          dotnet test -c Release --no-build --verbosity normal
+
+      - name: Create packages
+        if: inputs.create_packages
+        run: |
+          cd csharp
+          mkdir -p packages
+          dotnet pack -c Release --no-build --version-suffix "${{ inputs.version_suffix }}" -o "./packages"
+          
+          echo "## 📦 Created Packages" >> $GITHUB_STEP_SUMMARY
+          for pkg in packages/*.nupkg; do
+            if [ -f "$pkg" ]; then
+              echo "- $(basename "$pkg")" >> $GITHUB_STEP_SUMMARY
+            fi
+          done
+
+      - name: Upload packages as artifacts
+        if: inputs.create_packages
+        uses: actions/upload-artifact@v6
+        with:
+          name: nuget-packages-${{ inputs.version_suffix }}
+          retention-days: 30
+          path: |
+            csharp/packages/*.nupkg
+            csharp/packages/*.snupkg
+
+      - name: Push to GitHub Packages
+        if: inputs.create_packages && inputs.push_to_github
+        run: |
+          cd csharp/packages
+          for pkg in *.nupkg; do
+            if [ -f "$pkg" ]; then
+              echo "Pushing $pkg to GitHub Packages..."
+              dotnet nuget push "$pkg" \
+                --source "https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json" \
+                --api-key "${{ secrets.GITHUB_TOKEN }}" \
+                --skip-duplicate
+            fi
+          done
+
+      - name: Summary
+        run: |
+          echo "## ✅ Build Summary" >> $GITHUB_STEP_SUMMARY
+          echo "- **Version**: 0.23.0-${{ inputs.version_suffix }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Configuration**: Release" >> $GITHUB_STEP_SUMMARY
+          echo "- **Repository**: ${{ github.repository }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Branch**: ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Commit**: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
