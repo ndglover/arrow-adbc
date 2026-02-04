@@ -1,0 +1,147 @@
+# Custom release workflow for Neil's fork
+name: Custom Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version_suffix:
+        description: 'Version suffix (e.g., neil-dev, alpha1, beta2)'
+        required: true
+        default: 'neil-dev'
+        type: string
+      create_packages:
+        description: 'Create NuGet packages'
+        required: true
+        type: boolean
+        default: true
+      push_to_github:
+        description: 'Push packages to GitHub Packages'
+        required: true
+        type: boolean
+        default: false
+  push:
+    branches:
+      - feature/native-csharp-snowflake-driver
+
+concurrency:
+  group: ${{ github.repository }}-${{ github.ref }}-custom-release
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  packages: write
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  SKIP: all  # Skip all pre-commit hooks
+  PRE_COMMIT_HOME: /tmp/pre-commit-disabled
+
+jobs:
+  custom-build:
+    name: "Custom C# Build"
+    runs-on: ubuntu-latest
+    # Only run on push if commit message contains [release]
+    if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[release]')
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Disable git hooks
+        run: |
+          git config core.hooksPath /dev/null
+
+      - name: Set default values for push events
+        id: config
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "version_suffix=${{ inputs.version_suffix }}" >> $GITHUB_OUTPUT
+            echo "create_packages=${{ inputs.create_packages }}" >> $GITHUB_OUTPUT
+            echo "push_to_github=${{ inputs.push_to_github }}" >> $GITHUB_OUTPUT
+          else
+            echo "version_suffix=neil-dev" >> $GITHUB_OUTPUT
+            echo "create_packages=true" >> $GITHUB_OUTPUT
+            echo "push_to_github=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Show build info
+        run: |
+          echo "Version suffix: ${{ steps.config.outputs.version_suffix }}" >> $GITHUB_STEP_SUMMARY
+          echo "Create packages: ${{ steps.config.outputs.create_packages }}" >> $GITHUB_STEP_SUMMARY
+          echo "Push to GitHub: ${{ steps.config.outputs.push_to_github }}" >> $GITHUB_STEP_SUMMARY
+          echo "Repository: ${{ github.repository }}" >> $GITHUB_STEP_SUMMARY
+          echo "Branch: ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "⚠️ **Note**: Pre-commit hooks are skipped in this workflow" >> $GITHUB_STEP_SUMMARY
+
+      - name: Build (source projects only)
+        run: |
+          cd csharp
+          dotnet clean -c Release
+          # Build the solution
+          dotnet build Apache.Arrow.Adbc.sln -c Release --version-suffix "${{ steps.config.outputs.version_suffix }}"
+
+      - name: Create packages
+        if: steps.config.outputs.create_packages == 'true'
+        run: |
+          cd csharp
+          mkdir -p packages
+          # Pack the Snowflake driver specifically
+          echo "Packing Snowflake driver..."
+          dotnet pack src/Drivers/Snowflake/Apache.Arrow.Adbc.Drivers.Snowflake.csproj \
+            -c Release \
+            --no-build \
+            --version-suffix "${{ steps.config.outputs.version_suffix }}" \
+            -o "./packages" \
+            -v detailed
+          
+          echo "## 📦 Created Packages" >> $GITHUB_STEP_SUMMARY
+          if ls packages/*.nupkg 1> /dev/null 2>&1; then
+            for pkg in packages/*.nupkg; do
+              echo "- $(basename "$pkg")" >> $GITHUB_STEP_SUMMARY
+            done
+          else
+            echo "⚠️ No packages were created" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Upload packages as artifacts
+        if: steps.config.outputs.create_packages == 'true'
+        uses: actions/upload-artifact@v6
+        with:
+          name: nuget-packages-${{ steps.config.outputs.version_suffix }}
+          retention-days: 30
+          path: |
+            csharp/packages/*.nupkg
+            csharp/packages/*.snupkg
+
+      - name: Push to GitHub Packages
+        if: steps.config.outputs.create_packages == 'true' && steps.config.outputs.push_to_github == 'true'
+        run: |
+          cd csharp/packages
+          for pkg in *.nupkg; do
+            if [ -f "$pkg" ]; then
+              echo "Pushing $pkg to GitHub Packages..."
+              dotnet nuget push "$pkg" \
+                --source "https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json" \
+                --api-key "${{ secrets.GITHUB_TOKEN }}" \
+                --skip-duplicate
+            fi
+          done
+
+      - name: Summary
+        run: |
+          echo "## ✅ Build Summary" >> $GITHUB_STEP_SUMMARY
+          echo "- **Version**: 0.23.0-${{ steps.config.outputs.version_suffix }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Configuration**: Release" >> $GITHUB_STEP_SUMMARY
+          echo "- **Repository**: ${{ github.repository }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Branch**: ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Commit**: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY

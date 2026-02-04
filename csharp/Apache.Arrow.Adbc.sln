@@ -66,6 +66,10 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Apache.Arrow.Adbc.Tests.Tel
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Apache.Arrow.Adbc.Telemetry.Traces.Listeners", "src\Telemetry\Traces\Listeners\Apache.Arrow.Adbc.Telemetry.Traces.Listeners.csproj", "{4D5ADA1A-2DEE-5860-2351-221090CF4442}"
 EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Apache.Arrow.Adbc.Drivers.Snowflake", "src\Drivers\Snowflake\Apache.Arrow.Adbc.Drivers.Snowflake.csproj", "{B8F3E2A1-4C5D-4E6F-8A9B-1C2D3E4F5A6B}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Apache.Arrow.Adbc.Tests.Drivers.Snowflake", "test\Drivers\Snowflake\Apache.Arrow.Adbc.Tests.Drivers.Snowflake.csproj", "{C9F4E3B2-5D6E-4F7A-9B1C-2D3E4F5A6B7C}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -152,6 +156,14 @@ Global
 		{4D5ADA1A-2DEE-5860-2351-221090CF4442}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{4D5ADA1A-2DEE-5860-2351-221090CF4442}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{4D5ADA1A-2DEE-5860-2351-221090CF4442}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B8F3E2A1-4C5D-4E6F-8A9B-1C2D3E4F5A6B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B8F3E2A1-4C5D-4E6F-8A9B-1C2D3E4F5A6B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B8F3E2A1-4C5D-4E6F-8A9B-1C2D3E4F5A6B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B8F3E2A1-4C5D-4E6F-8A9B-1C2D3E4F5A6B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C9F4E3B2-5D6E-4F7A-9B1C-2D3E4F5A6B7C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C9F4E3B2-5D6E-4F7A-9B1C-2D3E4F5A6B7C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C9F4E3B2-5D6E-4F7A-9B1C-2D3E4F5A6B7C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C9F4E3B2-5D6E-4F7A-9B1C-2D3E4F5A6B7C}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -184,6 +196,8 @@ Global
 		{1C530561-1008-4F39-B437-15B2FD59EAC9} = {22EF23A3-1566-446F-B696-9323F3B6F56C}
 		{9CE9106B-ACBB-54C1-DE57-370E5CF09363} = {53C45FD3-7277-49FA-AEEB-DF8F2386ECAA}
 		{4D5ADA1A-2DEE-5860-2351-221090CF4442} = {1C530561-1008-4F39-B437-15B2FD59EAC9}
+		{B8F3E2A1-4C5D-4E6F-8A9B-1C2D3E4F5A6B} = {FEB257A0-4FD3-495E-9A47-9E1649755445}
+		{C9F4E3B2-5D6E-4F7A-9B1C-2D3E4F5A6B7C} = {C7290227-E925-47E7-8B6B-A8B171645D58}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {4795CF16-0FDB-4BE0-9768-5CF31564DC03}

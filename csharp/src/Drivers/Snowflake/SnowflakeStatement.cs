@@ -1,0 +1,262 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+using System;
+using System.Threading.Tasks;
+using Apache.Arrow.Adbc.Drivers.Snowflake.Configuration;
+using Apache.Arrow.Adbc.Drivers.Snowflake.Services;
+using Apache.Arrow.Adbc.Drivers.Snowflake.Services.ConnectionPool;
+using Apache.Arrow.Adbc.Drivers.Snowflake.Services.TypeConversion;
+
+namespace Apache.Arrow.Adbc.Drivers.Snowflake;
+
+/// <summary>
+/// Snowflake statement implementation for ADBC.
+/// </summary>
+public sealed class SnowflakeStatement : AdbcStatement
+{
+    private readonly ConnectionConfig _config;
+    private readonly IPooledConnection _pooledConnection;
+    private readonly IQueryExecutor _queryExecutor;
+    private readonly PreparedStatementManager _preparedStatementManager;
+    private readonly ITypeConverter _typeConverter;
+    private PreparedStatement? _preparedStatement;
+    private RecordBatch? _boundParameters;
+    private bool _disposed;
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="SnowflakeStatement"/> class.
+    /// </summary>
+    /// <param name="config">The connection configuration.</param>
+    /// <param name="pooledConnection">The pooled connection.</param>
+    /// <param name="queryExecutor">The query executor.</param>
+    /// <param name="preparedStatementManager">The prepared statement manager.</param>
+    public SnowflakeStatement(
+        ConnectionConfig config,
+        IPooledConnection pooledConnection,
+        IQueryExecutor queryExecutor,
+        PreparedStatementManager preparedStatementManager)
+    {
+        _config = config ?? throw new ArgumentNullException(nameof(config));
+        _pooledConnection = pooledConnection ?? throw new ArgumentNullException(nameof(pooledConnection));
+        _queryExecutor = queryExecutor ?? throw new ArgumentNullException(nameof(queryExecutor));
+        _preparedStatementManager = preparedStatementManager ?? throw new ArgumentNullException(nameof(preparedStatementManager));
+        _typeConverter = new TypeConverter();
+    }
+
+    /// <summary>
+    /// Binds parameters to the statement using a RecordBatch.
+    /// </summary>
+    /// <param name="batch">The RecordBatch containing parameter values.</param>
+    /// <param name="schema">The schema of the RecordBatch.</param>
+    public override void Bind(RecordBatch batch, Schema schema)
+    {
+        ThrowIfDisposed();
+        
+        if (batch == null)
+            throw new ArgumentNullException(nameof(batch));
+
+        if (schema == null)
+            throw new ArgumentNullException(nameof(schema));
+
+        _boundParameters = batch;
+    }
+
+    /// <summary>
+    /// Executes the query and returns a QueryResult.
+    /// </summary>
+    /// <returns>A QueryResult containing the query results.</returns>
+    public override QueryResult ExecuteQuery()
+    {
+        // Use async-first pattern: sync version calls async with proper blocking
+        return ExecuteQueryAsync().AsTask().GetAwaiter().GetResult();
+    }
+
+    /// <summary>
+    /// Executes the query asynchronously and returns a QueryResult.
+    /// </summary>
+    /// <returns>A QueryResult containing the query results.</returns>
+    public override async ValueTask<QueryResult> ExecuteQueryAsync()
+    {
+        ThrowIfDisposed();
+        
+        if (string.IsNullOrWhiteSpace(SqlQuery))
+            throw new InvalidOperationException("SQL query must be set before execution.");
+
+        try
+        {
+            // Build query request
+            var request = new QueryRequest
+            {
+                Statement = SqlQuery,
+                Database = _config.Database,
+                Schema = _config.Schema,
+                Warehouse = _config.Warehouse,
+                Role = _config.Role,
+                Timeout = _config.QueryTimeout,
+                AuthToken = _pooledConnection.AuthToken
+            };
+
+            // Add bound parameters if any
+            if (_boundParameters != null)
+            {
+                var parameterSet = _typeConverter.ConvertArrowBatchToParameters(_boundParameters);
+                foreach (var kvp in parameterSet.Parameters)
+                {
+                    if (kvp.Value != null)
+                        request.Parameters[kvp.Key] = kvp.Value;
+                }
+            }
+
+            // Execute query
+            var result = await _queryExecutor.ExecuteQueryAsync(request).ConfigureAwait(false);
+
+            // Convert to ADBC QueryResult
+            return new QueryResult(result.RowCount, result.ResultStream!);
+        }
+        catch (Exception ex)
+        {
+            throw new AdbcException($"Query execution failed: {ex.Message}", ex);
+        }
+    }
+
+    /// <summary>
+    /// Executes an update query and returns the number of affected rows.
+    /// </summary>
+    /// <returns>An UpdateResult containing the number of affected rows.</returns>
+    public override UpdateResult ExecuteUpdate()
+    {
+        // Use async-first pattern: sync version calls async with proper blocking
+        return ExecuteUpdateAsync().GetAwaiter().GetResult();
+    }
+
+    /// <summary>
+    /// Executes an update query asynchronously and returns the number of affected rows.
+    /// </summary>
+    /// <returns>An UpdateResult containing the number of affected rows.</returns>
+    public override async Task<UpdateResult> ExecuteUpdateAsync()
+    {
+        ThrowIfDisposed();
+        
+        if (string.IsNullOrWhiteSpace(SqlQuery))
+            throw new InvalidOperationException("SQL query must be set before execution.");
+
+        try
+        {
+            // Build query request
+            var request = new QueryRequest
+            {
+                Statement = SqlQuery,
+                Database = _config.Database,
+                Schema = _config.Schema,
+                Warehouse = _config.Warehouse,
+                Role = _config.Role,
+                Timeout = _config.QueryTimeout,
+                AuthToken = _pooledConnection.AuthToken
+            };
+
+            // Add bound parameters if any
+            if (_boundParameters != null)
+            {
+                var parameterSet = _typeConverter.ConvertArrowBatchToParameters(_boundParameters);
+                foreach (var kvp in parameterSet.Parameters)
+                {
+                    if (kvp.Value != null)
+                        request.Parameters[kvp.Key] = kvp.Value;
+                }
+            }
+
+            // Execute update
+            var result = await _queryExecutor.ExecuteQueryAsync(request).ConfigureAwait(false);
+
+            return new UpdateResult(result.RowCount);
+        }
+        catch (Exception ex)
+        {
+            throw new AdbcException($"Update execution failed: {ex.Message}", ex);
+        }
+    }
+
+    /// <summary>
+    /// Prepares the statement for execution.
+    /// </summary>
+    public override void Prepare()
+    {
+        ThrowIfDisposed();
+        
+        if (string.IsNullOrWhiteSpace(SqlQuery))
+            throw new InvalidOperationException("SQL query must be set before preparation.");
+
+        try
+        {
+            // Use ConfigureAwait(false) to avoid deadlocks
+            _preparedStatement = _preparedStatementManager.PrepareAsync(
+                SqlQuery,
+                _config.Database,
+                _config.Schema,
+                _config.Warehouse,
+                _config.Role,
+                _pooledConnection.AuthToken
+            ).ConfigureAwait(false).GetAwaiter().GetResult();
+        }
+        catch (Exception ex)
+        {
+            throw new AdbcException($"Statement preparation failed: {ex.Message}", ex);
+        }
+    }
+
+    /// <summary>
+    /// Gets the parameter schema for the prepared statement.
+    /// </summary>
+    /// <returns>The Arrow schema for parameters.</returns>
+    public override Schema GetParameterSchema()
+    {
+        ThrowIfDisposed();
+
+        if (_preparedStatement == null)
+            throw new InvalidOperationException("Statement must be prepared before getting parameter schema.");
+
+        return _preparedStatement.ParameterSchema 
+            ?? throw new InvalidOperationException("Prepared statement does not have a parameter schema.");
+    }
+
+    /// <summary>
+    /// Disposes the statement and releases any resources.
+    /// </summary>
+    public override void Dispose()
+    {
+        if (!_disposed)
+        {
+            if (_preparedStatement != null)
+            {
+                _preparedStatementManager.Close(_preparedStatement);
+                _preparedStatement = null;
+            }
+            
+            _boundParameters?.Dispose();
+            _boundParameters = null;
+            
+            _disposed = true;
+        }
+        base.Dispose();
+    }
+
+    private void ThrowIfDisposed()
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+    }
+}
