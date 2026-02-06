@@ -19,6 +19,9 @@ on:
         required: true
         type: boolean
         default: false
+  push:
+    branches:
+      - feature/native-csharp-snowflake-driver
 
 concurrency:
   group: ${{ github.repository }}-${{ github.ref }}-custom-release
@@ -36,6 +39,8 @@ jobs:
   custom-build:
     name: "Custom C# Build"
     runs-on: ubuntu-latest
+    # Only run on push if commit message contains [release]
+    if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[release]')
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
@@ -47,11 +52,24 @@ jobs:
         with:
           dotnet-version: '8.0.x'
 
+      - name: Set default values for push events
+        id: config
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "version_suffix=${{ inputs.version_suffix }}" >> $GITHUB_OUTPUT
+            echo "create_packages=${{ inputs.create_packages }}" >> $GITHUB_OUTPUT
+            echo "push_to_github=${{ inputs.push_to_github }}" >> $GITHUB_OUTPUT
+          else
+            echo "version_suffix=neil-dev" >> $GITHUB_OUTPUT
+            echo "create_packages=true" >> $GITHUB_OUTPUT
+            echo "push_to_github=false" >> $GITHUB_OUTPUT
+          fi
+
       - name: Show build info
         run: |
-          echo "Version suffix: ${{ inputs.version_suffix }}" >> $GITHUB_STEP_SUMMARY
-          echo "Create packages: ${{ inputs.create_packages }}" >> $GITHUB_STEP_SUMMARY
-          echo "Push to GitHub: ${{ inputs.push_to_github }}" >> $GITHUB_STEP_SUMMARY
+          echo "Version suffix: ${{ steps.config.outputs.version_suffix }}" >> $GITHUB_STEP_SUMMARY
+          echo "Create packages: ${{ steps.config.outputs.create_packages }}" >> $GITHUB_STEP_SUMMARY
+          echo "Push to GitHub: ${{ steps.config.outputs.push_to_github }}" >> $GITHUB_STEP_SUMMARY
           echo "Repository: ${{ github.repository }}" >> $GITHUB_STEP_SUMMARY
           echo "Branch: ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
 
@@ -59,15 +77,15 @@ jobs:
         run: |
           cd csharp
           dotnet clean -c Release
-          dotnet build -c Release --version-suffix "${{ inputs.version_suffix }}"
+          dotnet build -c Release --version-suffix "${{ steps.config.outputs.version_suffix }}"
           dotnet test -c Release --no-build --verbosity normal
 
       - name: Create packages
-        if: inputs.create_packages
+        if: steps.config.outputs.create_packages == 'true'
         run: |
           cd csharp
           mkdir -p packages
-          dotnet pack -c Release --no-build --version-suffix "${{ inputs.version_suffix }}" -o "./packages"
+          dotnet pack -c Release --no-build --version-suffix "${{ steps.config.outputs.version_suffix }}" -o "./packages"
           
           echo "## 📦 Created Packages" >> $GITHUB_STEP_SUMMARY
           for pkg in packages/*.nupkg; do
@@ -77,17 +95,17 @@ jobs:
           done
 
       - name: Upload packages as artifacts
-        if: inputs.create_packages
+        if: steps.config.outputs.create_packages == 'true'
         uses: actions/upload-artifact@v6
         with:
-          name: nuget-packages-${{ inputs.version_suffix }}
+          name: nuget-packages-${{ steps.config.outputs.version_suffix }}
           retention-days: 30
           path: |
             csharp/packages/*.nupkg
             csharp/packages/*.snupkg
 
       - name: Push to GitHub Packages
-        if: inputs.create_packages && inputs.push_to_github
+        if: steps.config.outputs.create_packages == 'true' && steps.config.outputs.push_to_github == 'true'
         run: |
           cd csharp/packages
           for pkg in *.nupkg; do
@@ -103,7 +121,7 @@ jobs:
       - name: Summary
         run: |
           echo "## ✅ Build Summary" >> $GITHUB_STEP_SUMMARY
-          echo "- **Version**: 0.23.0-${{ inputs.version_suffix }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Version**: 0.23.0-${{ steps.config.outputs.version_suffix }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Configuration**: Release" >> $GITHUB_STEP_SUMMARY
           echo "- **Repository**: ${{ github.repository }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Branch**: ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
