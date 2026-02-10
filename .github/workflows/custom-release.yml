@@ -87,16 +87,16 @@ jobs:
         run: |
           cd csharp
           dotnet clean -c Release
-          # Build only source projects, skip test projects
-          dotnet build src -c Release --version-suffix "${{ steps.config.outputs.version_suffix }}"
+          # Build the solution
+          dotnet build Apache.Arrow.Adbc.sln -c Release --version-suffix "${{ steps.config.outputs.version_suffix }}"
 
       - name: Create packages
         if: steps.config.outputs.create_packages == 'true'
         run: |
           cd csharp
           mkdir -p packages
-          # Pack only source projects
-          dotnet pack src -c Release --no-build --version-suffix "${{ steps.config.outputs.version_suffix }}" -o "./packages"
+          # Pack only the packable projects (excludes tests automatically)
+          dotnet pack Apache.Arrow.Adbc.sln -c Release --no-build --version-suffix "${{ steps.config.outputs.version_suffix }}" -o "./packages" /p:PackageOutputPath=./packages
           
           echo "## 📦 Created Packages" >> $GITHUB_STEP_SUMMARY
           for pkg in packages/*.nupkg; do
