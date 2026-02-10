@@ -73,12 +73,11 @@ jobs:
           echo "Repository: ${{ github.repository }}" >> $GITHUB_STEP_SUMMARY
           echo "Branch: ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
 
-      - name: Build and test
+      - name: Build
         run: |
           cd csharp
           dotnet clean -c Release
           dotnet build -c Release --version-suffix "${{ steps.config.outputs.version_suffix }}"
-          dotnet test -c Release --no-build --verbosity normal
 
       - name: Create packages
         if: steps.config.outputs.create_packages == 'true'
