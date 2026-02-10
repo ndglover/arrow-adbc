@@ -73,18 +73,20 @@ jobs:
           echo "Repository: ${{ github.repository }}" >> $GITHUB_STEP_SUMMARY
           echo "Branch: ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
 
-      - name: Build
+      - name: Build (source projects only)
         run: |
           cd csharp
           dotnet clean -c Release
-          dotnet build -c Release --version-suffix "${{ steps.config.outputs.version_suffix }}"
+          # Build only source projects, skip test projects
+          dotnet build src -c Release --version-suffix "${{ steps.config.outputs.version_suffix }}"
 
       - name: Create packages
         if: steps.config.outputs.create_packages == 'true'
         run: |
           cd csharp
           mkdir -p packages
-          dotnet pack -c Release --no-build --version-suffix "${{ steps.config.outputs.version_suffix }}" -o "./packages"
+          # Pack only source projects
+          dotnet pack src -c Release --no-build --version-suffix "${{ steps.config.outputs.version_suffix }}" -o "./packages"
           
           echo "## 📦 Created Packages" >> $GITHUB_STEP_SUMMARY
           for pkg in packages/*.nupkg; do
