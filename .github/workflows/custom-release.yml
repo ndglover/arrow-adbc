@@ -37,6 +37,7 @@ defaults:
 
 env:
   SKIP: all  # Skip all pre-commit hooks
+  PRE_COMMIT_HOME: /tmp/pre-commit-disabled
 
 jobs:
   custom-build:
