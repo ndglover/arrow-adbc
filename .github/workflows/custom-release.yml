@@ -95,15 +95,23 @@ jobs:
         run: |
           cd csharp
           mkdir -p packages
-          # Pack only the packable projects (excludes tests automatically)
-          dotnet pack Apache.Arrow.Adbc.sln -c Release --no-build --version-suffix "${{ steps.config.outputs.version_suffix }}" -o "./packages" /p:PackageOutputPath=./packages
+          # Pack the Snowflake driver specifically
+          echo "Packing Snowflake driver..."
+          dotnet pack src/Drivers/Snowflake/Apache.Arrow.Adbc.Drivers.Snowflake.csproj \
+            -c Release \
+            --no-build \
+            --version-suffix "${{ steps.config.outputs.version_suffix }}" \
+            -o "./packages" \
+            -v detailed
           
           echo "## 📦 Created Packages" >> $GITHUB_STEP_SUMMARY
-          for pkg in packages/*.nupkg; do
-            if [ -f "$pkg" ]; then
+          if ls packages/*.nupkg 1> /dev/null 2>&1; then
+            for pkg in packages/*.nupkg; do
               echo "- $(basename "$pkg")" >> $GITHUB_STEP_SUMMARY
-            fi
-          done
+            done
+          else
+            echo "⚠️ No packages were created" >> $GITHUB_STEP_SUMMARY
+          fi
 
       - name: Upload packages as artifacts
         if: steps.config.outputs.create_packages == 'true'
