@@ -16,8 +16,12 @@
  */
 
 using System;
+using System.Threading.Tasks;
 using Apache.Arrow;
 using Apache.Arrow.Adbc.Drivers.Snowflake.Configuration;
+using Apache.Arrow.Adbc.Drivers.Snowflake.Services;
+using Apache.Arrow.Adbc.Drivers.Snowflake.Services.ConnectionPool;
+using Apache.Arrow.Adbc.Drivers.Snowflake.Services.TypeConversion;
 
 namespace Apache.Arrow.Adbc.Drivers.Snowflake
 {
@@ -27,15 +31,32 @@ namespace Apache.Arrow.Adbc.Drivers.Snowflake
     public sealed class SnowflakeStatement : AdbcStatement
     {
         private readonly ConnectionConfig _config;
+        private readonly IPooledConnection _pooledConnection;
+        private readonly IQueryExecutor _queryExecutor;
+        private readonly PreparedStatementManager _preparedStatementManager;
+        private readonly ITypeConverter _typeConverter;
+        private PreparedStatement? _preparedStatement;
+        private RecordBatch? _boundParameters;
         private bool _disposed;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="SnowflakeStatement"/> class.
         /// </summary>
         /// <param name="config">The connection configuration.</param>
-        public SnowflakeStatement(ConnectionConfig config)
+        /// <param name="pooledConnection">The pooled connection.</param>
+        /// <param name="queryExecutor">The query executor.</param>
+        /// <param name="preparedStatementManager">The prepared statement manager.</param>
+        public SnowflakeStatement(
+            ConnectionConfig config,
+            IPooledConnection pooledConnection,
+            IQueryExecutor queryExecutor,
+            PreparedStatementManager preparedStatementManager)
         {
             _config = config ?? throw new ArgumentNullException(nameof(config));
+            _pooledConnection = pooledConnection ?? throw new ArgumentNullException(nameof(pooledConnection));
+            _queryExecutor = queryExecutor ?? throw new ArgumentNullException(nameof(queryExecutor));
+            _preparedStatementManager = preparedStatementManager ?? throw new ArgumentNullException(nameof(preparedStatementManager));
+            _typeConverter = new TypeConverter();
         }
 
         /// <summary>
@@ -48,18 +69,12 @@ namespace Apache.Arrow.Adbc.Drivers.Snowflake
             ThrowIfDisposed();
             
             if (batch == null)
-            {
                 throw new ArgumentNullException(nameof(batch));
-            }
 
             if (schema == null)
-            {
                 throw new ArgumentNullException(nameof(schema));
-            }
 
-            // TODO: Implement parameter binding
-            // This will be implemented in a later task when we have the query executor
-            throw new NotImplementedException("Parameter binding will be implemented in task 7.2");
+            _boundParameters = batch;
         }
 
         /// <summary>
@@ -71,13 +86,43 @@ namespace Apache.Arrow.Adbc.Drivers.Snowflake
             ThrowIfDisposed();
             
             if (string.IsNullOrWhiteSpace(SqlQuery))
-            {
                 throw new InvalidOperationException("SQL query must be set before execution.");
-            }
 
-            // TODO: Implement query execution
-            // This will be implemented in a later task when we have the query executor
-            throw new NotImplementedException("Query execution will be implemented in task 7.1");
+            try
+            {
+                // Build query request
+                var request = new QueryRequest
+                {
+                    Statement = SqlQuery,
+                    Database = _config.Database,
+                    Schema = _config.Schema,
+                    Warehouse = _config.Warehouse,
+                    Role = _config.Role,
+                    Timeout = _config.QueryTimeout,
+                    AuthToken = _pooledConnection.AuthToken
+                };
+
+                // Add bound parameters if any
+                if (_boundParameters != null)
+                {
+                    var parameterSet = _typeConverter.ConvertArrowBatchToParameters(_boundParameters);
+                    request.Parameters = parameterSet.Parameters;
+                }
+
+                // Execute query
+                var result = _queryExecutor.ExecuteQueryAsync(request).GetAwaiter().GetResult();
+
+                // Convert to ADBC QueryResult
+                return new QueryResult
+                {
+                    Stream = result.ResultStream,
+                    RowsAffected = result.RowCount
+                };
+            }
+            catch (Exception ex)
+            {
+                throw new AdbcException($"Query execution failed: {ex.Message}", ex);
+            }
         }
 
         /// <summary>
@@ -89,13 +134,41 @@ namespace Apache.Arrow.Adbc.Drivers.Snowflake
             ThrowIfDisposed();
             
             if (string.IsNullOrWhiteSpace(SqlQuery))
-            {
                 throw new InvalidOperationException("SQL query must be set before execution.");
-            }
 
-            // TODO: Implement update execution
-            // This will be implemented in a later task when we have the query executor
-            throw new NotImplementedException("Update execution will be implemented in task 7.1");
+            try
+            {
+                // Build query request
+                var request = new QueryRequest
+                {
+                    Statement = SqlQuery,
+                    Database = _config.Database,
+                    Schema = _config.Schema,
+                    Warehouse = _config.Warehouse,
+                    Role = _config.Role,
+                    Timeout = _config.QueryTimeout,
+                    AuthToken = _pooledConnection.AuthToken
+                };
+
+                // Add bound parameters if any
+                if (_boundParameters != null)
+                {
+                    var parameterSet = _typeConverter.ConvertArrowBatchToParameters(_boundParameters);
+                    request.Parameters = parameterSet.Parameters;
+                }
+
+                // Execute update
+                var result = _queryExecutor.ExecuteQueryAsync(request).GetAwaiter().GetResult();
+
+                return new UpdateResult
+                {
+                    RowsAffected = result.RowCount
+                };
+            }
+            catch (Exception ex)
+            {
+                throw new AdbcException($"Update execution failed: {ex.Message}", ex);
+            }
         }
 
         /// <summary>
@@ -106,13 +179,23 @@ namespace Apache.Arrow.Adbc.Drivers.Snowflake
             ThrowIfDisposed();
             
             if (string.IsNullOrWhiteSpace(SqlQuery))
-            {
                 throw new InvalidOperationException("SQL query must be set before preparation.");
-            }
 
-            // TODO: Implement statement preparation
-            // This will be implemented in a later task when we have the query executor
-            throw new NotImplementedException("Statement preparation will be implemented in task 7.2");
+            try
+            {
+                _preparedStatement = _preparedStatementManager.PrepareAsync(
+                    SqlQuery,
+                    _config.Database,
+                    _config.Schema,
+                    _config.Warehouse,
+                    _config.Role,
+                    _pooledConnection.AuthToken
+                ).GetAwaiter().GetResult();
+            }
+            catch (Exception ex)
+            {
+                throw new AdbcException($"Statement preparation failed: {ex.Message}", ex);
+            }
         }
 
         /// <summary>
@@ -123,9 +206,11 @@ namespace Apache.Arrow.Adbc.Drivers.Snowflake
         {
             ThrowIfDisposed();
 
-            // TODO: Implement parameter schema retrieval
-            // This will be implemented in a later task when we have the query executor
-            throw new NotImplementedException("Parameter schema retrieval will be implemented in task 7.2");
+            if (_preparedStatement == null)
+                throw new InvalidOperationException("Statement must be prepared before getting parameter schema.");
+
+            return _preparedStatement.ParameterSchema 
+                ?? throw new InvalidOperationException("Prepared statement does not have a parameter schema.");
         }
 
         /// <summary>
@@ -135,7 +220,15 @@ namespace Apache.Arrow.Adbc.Drivers.Snowflake
         {
             if (!_disposed)
             {
-                // TODO: Clean up prepared statement resources when implemented
+                if (_preparedStatement != null)
+                {
+                    _preparedStatementManager.Close(_preparedStatement);
+                    _preparedStatement = null;
+                }
+                
+                _boundParameters?.Dispose();
+                _boundParameters = null;
+                
                 _disposed = true;
             }
             base.Dispose();

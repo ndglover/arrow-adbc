@@ -17,11 +17,10 @@
 
 using System;
 using System.Collections.Generic;
-using System.Threading;
-using System.Threading.Tasks;
-using Apache.Arrow;
-using Apache.Arrow.Ipc;
+using System.Net.Http;
 using Apache.Arrow.Adbc.Drivers.Snowflake.Configuration;
+using Apache.Arrow.Adbc.Drivers.Snowflake.Services.Authentication;
+using Apache.Arrow.Adbc.Drivers.Snowflake.Services.ConnectionPool;
 
 namespace Apache.Arrow.Adbc.Drivers.Snowflake
 {
@@ -31,6 +30,7 @@ namespace Apache.Arrow.Adbc.Drivers.Snowflake
     public sealed class SnowflakeDatabase : AdbcDatabase
     {
         private readonly ConnectionConfig _config;
+        private readonly IConnectionPool _connectionPool;
         private bool _disposed;
 
         /// <summary>
@@ -40,6 +40,16 @@ namespace Apache.Arrow.Adbc.Drivers.Snowflake
         public SnowflakeDatabase(ConnectionConfig config)
         {
             _config = config ?? throw new ArgumentNullException(nameof(config));
+            
+            // Initialize services
+            var httpClient = new HttpClient();
+            var basicAuth = new BasicAuthenticator(httpClient);
+            var keyPairAuth = new KeyPairAuthenticator(httpClient);
+            var oauthAuth = new OAuthAuthenticator(httpClient);
+            var ssoAuth = new SsoAuthenticator(httpClient);
+            
+            var authService = new AuthenticationService(basicAuth, keyPairAuth, oauthAuth, ssoAuth);
+            _connectionPool = new ConnectionPool(authService);
         }
 
         /// <summary>
@@ -50,7 +60,7 @@ namespace Apache.Arrow.Adbc.Drivers.Snowflake
         public override AdbcConnection Connect(IReadOnlyDictionary<string, string>? parameters)
         {
             ThrowIfDisposed();
-            return new SnowflakeConnection(_config);
+            return new SnowflakeConnection(_config, _connectionPool);
         }
 
         /// <summary>
@@ -60,7 +70,7 @@ namespace Apache.Arrow.Adbc.Drivers.Snowflake
         {
             if (!_disposed)
             {
-                // TODO: Dispose connection pool and other resources when implemented
+                _connectionPool?.Dispose();
                 _disposed = true;
             }
             base.Dispose();

@@ -17,9 +17,15 @@
 
 using System;
 using System.Collections.Generic;
+using System.Net.Http;
+using System.Threading.Tasks;
 using Apache.Arrow;
 using Apache.Arrow.Ipc;
 using Apache.Arrow.Adbc.Drivers.Snowflake.Configuration;
+using Apache.Arrow.Adbc.Drivers.Snowflake.Services;
+using Apache.Arrow.Adbc.Drivers.Snowflake.Services.ConnectionPool;
+using Apache.Arrow.Adbc.Drivers.Snowflake.Services.Transport;
+using Apache.Arrow.Adbc.Drivers.Snowflake.Services.TypeConversion;
 
 namespace Apache.Arrow.Adbc.Drivers.Snowflake
 {
@@ -29,17 +35,35 @@ namespace Apache.Arrow.Adbc.Drivers.Snowflake
     public sealed class SnowflakeConnection : AdbcConnection
     {
         private readonly ConnectionConfig _config;
+        private readonly IConnectionPool _connectionPool;
         private readonly Dictionary<string, string> _options;
+        private IPooledConnection? _pooledConnection;
+        private IQueryExecutor? _queryExecutor;
+        private PreparedStatementManager? _preparedStatementManager;
         private bool _disposed;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="SnowflakeConnection"/> class.
         /// </summary>
         /// <param name="config">The connection configuration.</param>
-        public SnowflakeConnection(ConnectionConfig config)
+        /// <param name="connectionPool">The connection pool.</param>
+        public SnowflakeConnection(ConnectionConfig config, IConnectionPool connectionPool)
         {
             _config = config ?? throw new ArgumentNullException(nameof(config));
+            _connectionPool = connectionPool ?? throw new ArgumentNullException(nameof(connectionPool));
             _options = new Dictionary<string, string>();
+            
+            // Acquire connection from pool
+            _pooledConnection = _connectionPool.AcquireConnectionAsync(_config).GetAwaiter().GetResult();
+            
+            // Initialize services
+            var httpClient = new HttpClient();
+            var apiClient = new RestApiClient(httpClient, _config.EnableCompression);
+            var streamReader = new ArrowStreamReader();
+            var typeConverter = new TypeConverter();
+            
+            _queryExecutor = new QueryExecutor(apiClient, streamReader, typeConverter, _config.Account);
+            _preparedStatementManager = new PreparedStatementManager(apiClient, typeConverter, _config.Account);
         }
 
         /// <summary>
@@ -49,7 +73,11 @@ namespace Apache.Arrow.Adbc.Drivers.Snowflake
         public override AdbcStatement CreateStatement()
         {
             ThrowIfDisposed();
-            return new SnowflakeStatement(_config);
+            
+            if (_pooledConnection == null || _queryExecutor == null || _preparedStatementManager == null)
+                throw new InvalidOperationException("Connection is not properly initialized.");
+            
+            return new SnowflakeStatement(_config, _pooledConnection, _queryExecutor, _preparedStatementManager);
         }
 
         /// <summary>
@@ -77,8 +105,7 @@ namespace Apache.Arrow.Adbc.Drivers.Snowflake
         {
             ThrowIfDisposed();
 
-            // TODO: Implement table types retrieval
-            // This will be implemented in a later task when we have the metadata provider
+            // Snowflake table types: TABLE, VIEW, EXTERNAL TABLE, MATERIALIZED VIEW
             throw new NotImplementedException("Table types retrieval will be implemented in task 9.1");
         }
 
@@ -98,8 +125,6 @@ namespace Apache.Arrow.Adbc.Drivers.Snowflake
                 throw new ArgumentException("Table name cannot be null or empty.", nameof(tableName));
             }
 
-            // TODO: Implement table schema retrieval
-            // This will be implemented in a later task when we have the metadata provider
             throw new NotImplementedException("Table schema retrieval will be implemented in task 9.1");
         }
 
@@ -118,8 +143,6 @@ namespace Apache.Arrow.Adbc.Drivers.Snowflake
         {
             ThrowIfDisposed();
 
-            // TODO: Implement database objects retrieval
-            // This will be implemented in a later task when we have the metadata provider
             throw new NotImplementedException("Database objects retrieval will be implemented in task 9.1");
         }
 
@@ -130,8 +153,7 @@ namespace Apache.Arrow.Adbc.Drivers.Snowflake
         {
             ThrowIfDisposed();
 
-            // TODO: Implement transaction commit
-            // Snowflake supports transactions, but this will be implemented in a later task
+            // Snowflake supports transactions via COMMIT statement
             throw new NotImplementedException("Transaction support will be implemented in a later task");
         }
 
@@ -142,8 +164,7 @@ namespace Apache.Arrow.Adbc.Drivers.Snowflake
         {
             ThrowIfDisposed();
 
-            // TODO: Implement transaction rollback
-            // Snowflake supports transactions, but this will be implemented in a later task
+            // Snowflake supports transactions via ROLLBACK statement
             throw new NotImplementedException("Transaction support will be implemented in a later task");
         }
 
@@ -154,7 +175,12 @@ namespace Apache.Arrow.Adbc.Drivers.Snowflake
         {
             if (!_disposed)
             {
-                // TODO: Close connection and release resources when implemented
+                if (_pooledConnection != null)
+                {
+                    _connectionPool.ReleaseConnection(_pooledConnection);
+                    _pooledConnection = null;
+                }
+                
                 _disposed = true;
             }
             base.Dispose();
