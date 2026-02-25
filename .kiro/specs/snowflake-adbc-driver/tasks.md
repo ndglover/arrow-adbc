@@ -35,25 +35,25 @@ The implementation follows a layered approach, starting with core infrastructure
     - **Validates: Requirements 1.4**
 
 - [ ] 3. Implement authentication services
-  - [ ] 3.1 Create authentication service interfaces and base classes
+  - [x] 3.1 Create authentication service interfaces and base classes
     - Define IAuthenticationService and authentication method interfaces
     - Implement AuthenticationToken and related security models
     - _Requirements: 3.5_
   
-  - [ ] 3.2 Implement basic username/password authentication
+  - [x] 3.2 Implement basic username/password authentication
     - Create BasicAuthenticator with secure credential handling
     - _Requirements: 3.1_
   
-  - [ ] 3.3 Implement RSA key pair authentication
+  - [x] 3.3 Implement RSA key pair authentication
     - Create KeyPairAuthenticator with private key handling
     - Support encrypted private keys with passphrases
     - _Requirements: 3.2_
   
-  - [ ] 3.4 Implement OAuth 2.0 authentication
+  - [x] 3.4 Implement OAuth 2.0 authentication
     - Create OAuthAuthenticator with token refresh capabilities
     - _Requirements: 3.3_
   
-  - [ ] 3.5 Implement SSO authentication
+  - [x] 3.5 Implement SSO authentication
     - Create SsoAuthenticator with external browser support
     - _Requirements: 3.4_
   
@@ -62,17 +62,17 @@ The implementation follows a layered approach, starting with core infrastructure
     - **Validates: Requirements 3.1, 3.2, 3.3, 3.4**
 
 - [ ] 4. Implement REST API client and transport layer
-  - [ ] 4.1 Create HTTP client wrapper with authentication
+  - [x] 4.1 Create HTTP client wrapper with authentication
     - Implement RestApiClient with JWT token handling
     - Add request/response serialization and compression support
     - _Requirements: 2.4, 10.4_
   
-  - [ ] 4.2 Implement request builders for Snowflake SQL API
+  - [x] 4.2 Implement request builders for Snowflake SQL API
     - Create RequestBuilder for query execution requests
     - Support multi-statement queries and parameter binding
     - _Requirements: 4.1, 4.5_
   
-  - [ ] 4.3 Implement Arrow stream reader
+  - [x] 4.3 Implement Arrow stream reader
     - Create ArrowStreamReader for processing Snowflake Arrow responses
     - Handle streaming and pagination of large result sets
     - _Requirements: 9.2, 9.3_

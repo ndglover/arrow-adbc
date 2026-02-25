@@ -1,0 +1,134 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+using System;
+using System.Net.Http;
+using System.Net.Http.Json;
+using System.Text.Json;
+using System.Threading;
+using System.Threading.Tasks;
+using Apache.Arrow.Adbc.Drivers.Snowflake.Configuration;
+
+namespace Apache.Arrow.Adbc.Drivers.Snowflake.Services.Authentication
+{
+    /// <summary>
+    /// Implements basic username/password authentication for Snowflake.
+    /// </summary>
+    public class BasicAuthenticator : IBasicAuthenticator
+    {
+        private readonly HttpClient _httpClient;
+        private const string LoginEndpoint = "/session/v1/login-request";
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="BasicAuthenticator"/> class.
+        /// </summary>
+        /// <param name="httpClient">The HTTP client for making requests.</param>
+        public BasicAuthenticator(HttpClient httpClient)
+        {
+            _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
+        }
+
+        /// <inheritdoc/>
+        public async Task<AuthenticationToken> AuthenticateAsync(
+            string account,
+            string user,
+            string password,
+            CancellationToken cancellationToken = default)
+        {
+            if (string.IsNullOrEmpty(account))
+                throw new ArgumentException("Account cannot be null or empty.", nameof(account));
+            
+            if (string.IsNullOrEmpty(user))
+                throw new ArgumentException("User cannot be null or empty.", nameof(user));
+            
+            if (string.IsNullOrEmpty(password))
+                throw new ArgumentException("Password cannot be null or empty.", nameof(password));
+
+            var loginUrl = BuildLoginUrl(account);
+            var loginRequest = new
+            {
+                data = new
+                {
+                    ACCOUNT_NAME = account,
+                    LOGIN_NAME = user,
+                    PASSWORD = password,
+                    CLIENT_APP_ID = "ADBC",
+                    CLIENT_APP_VERSION = "1.0.0"
+                }
+            };
+
+            try
+            {
+                var response = await _httpClient.PostAsJsonAsync(loginUrl, loginRequest, cancellationToken);
+                response.EnsureSuccessStatusCode();
+
+                var responseContent = await response.Content.ReadFromJsonAsync<LoginResponse>(cancellationToken);
+                
+                if (responseContent?.Data == null)
+                    throw new InvalidOperationException("Invalid response from Snowflake authentication service.");
+
+                if (!responseContent.Success)
+                {
+                    var errorMessage = responseContent.Message ?? "Authentication failed.";
+                    throw new InvalidOperationException($"Snowflake authentication failed: {errorMessage}");
+                }
+
+                return new AuthenticationToken
+                {
+                    AccessToken = responseContent.Data.Token ?? throw new InvalidOperationException("No token received from Snowflake."),
+                    SessionToken = responseContent.Data.SessionToken,
+                    MasterToken = responseContent.Data.MasterToken,
+                    ExpiresAt = DateTimeOffset.UtcNow.AddSeconds(responseContent.Data.MasterTokenValidityInSeconds),
+                    TokenType = "Snowflake"
+                };
+            }
+            catch (HttpRequestException ex)
+            {
+                throw new InvalidOperationException($"Failed to authenticate with Snowflake: {ex.Message}", ex);
+            }
+            catch (JsonException ex)
+            {
+                throw new InvalidOperationException($"Failed to parse Snowflake authentication response: {ex.Message}", ex);
+            }
+        }
+
+        private static string BuildLoginUrl(string account)
+        {
+            // Snowflake account URL format: https://<account>.snowflakecomputing.com
+            var accountUrl = account.Contains(".")
+                ? $"https://{account}"
+                : $"https://{account}.snowflakecomputing.com";
+            
+            return $"{accountUrl}{LoginEndpoint}";
+        }
+
+        private class LoginResponse
+        {
+            public bool Success { get; set; }
+            public string? Message { get; set; }
+            public LoginData? Data { get; set; }
+        }
+
+        private class LoginData
+        {
+            public string? Token { get; set; }
+            public string? SessionToken { get; set; }
+            public string? MasterToken { get; set; }
+            public int MasterTokenValidityInSeconds { get; set; } = 14400; // Default 4 hours
+        }
+    }
+}
