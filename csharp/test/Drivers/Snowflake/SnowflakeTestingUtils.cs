@@ -29,16 +29,61 @@ namespace Apache.Arrow.Adbc.Tests.Drivers.Snowflake
 
         static SnowflakeTestingUtils()
         {
-            try
+            // Try to build configuration from individual environment variables first
+            TestConfiguration = TryLoadFromEnvironmentVariables();
+
+            // If not found, fall back to JSON file
+            if (string.IsNullOrEmpty(TestConfiguration.Account))
             {
-                TestConfiguration = Utils.LoadTestConfiguration<SnowflakeTestConfiguration>(SNOWFLAKE_TEST_CONFIG_VARIABLE);
+                try
+                {
+                    TestConfiguration = Utils.LoadTestConfiguration<SnowflakeTestConfiguration>(SNOWFLAKE_TEST_CONFIG_VARIABLE);
+                }
+                catch (InvalidOperationException ex)
+                {
+                    Console.WriteLine($"Cannot load test configuration from environment variable `{SNOWFLAKE_TEST_CONFIG_VARIABLE}`");
+                    Console.WriteLine(ex.Message);
+                    TestConfiguration = new SnowflakeTestConfiguration();
+                }
             }
-            catch (InvalidOperationException ex)
+        }
+
+        /// <summary>
+        /// Attempts to load configuration from individual environment variables.
+        /// This allows tests to run without requiring a JSON config file.
+        /// </summary>
+        private static SnowflakeTestConfiguration TryLoadFromEnvironmentVariables()
+        {
+            var config = new SnowflakeTestConfiguration();
+
+            // Required parameters
+            config.Account = Environment.GetEnvironmentVariable("SNOWFLAKE_ACCOUNT") ?? string.Empty;
+            config.User = Environment.GetEnvironmentVariable("SNOWFLAKE_USER") ?? string.Empty;
+            config.Password = Environment.GetEnvironmentVariable("SNOWFLAKE_PASSWORD") ?? string.Empty;
+
+            // Optional parameters
+            config.Database = Environment.GetEnvironmentVariable("SNOWFLAKE_DATABASE") ?? string.Empty;
+            config.Schema = Environment.GetEnvironmentVariable("SNOWFLAKE_SCHEMA") ?? string.Empty;
+            config.Warehouse = Environment.GetEnvironmentVariable("SNOWFLAKE_WAREHOUSE") ?? string.Empty;
+            config.Role = Environment.GetEnvironmentVariable("SNOWFLAKE_ROLE") ?? string.Empty;
+            config.Host = Environment.GetEnvironmentVariable("SNOWFLAKE_HOST") ?? string.Empty;
+            
+            // Query for testing (defaults to simple SELECT if not provided)
+            config.Query = Environment.GetEnvironmentVariable("SNOWFLAKE_QUERY") ?? "SELECT 1 as TESTCOL";
+
+            // If we have the basic required parameters, set up default authentication
+            if (!string.IsNullOrEmpty(config.Account) && 
+                !string.IsNullOrEmpty(config.User) && 
+                !string.IsNullOrEmpty(config.Password))
             {
-                Console.WriteLine($"Cannot load test configuration from environment variable `{SNOWFLAKE_TEST_CONFIG_VARIABLE}`");
-                Console.WriteLine(ex.Message);
-                TestConfiguration = new SnowflakeTestConfiguration();
+                config.Authentication.Default = new DefaultAuthentication
+                {
+                    User = config.User,
+                    Password = config.Password
+                };
             }
+
+            return config;
         }
 
         /// <summary>

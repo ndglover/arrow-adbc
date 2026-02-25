@@ -17,11 +17,47 @@ Integration tests require a real Snowflake instance and credentials.
 
 ## Running Integration Tests
 
-Integration tests use the same JSON configuration format as the Interop Snowflake tests for compatibility.
+Integration tests support two configuration methods:
 
-### 1. Create a JSON configuration file
+### Option 1: Environment Variables (Recommended)
 
-Create a file (e.g., `snowflake_config.json`):
+Set individual environment variables for your Snowflake credentials:
+
+**Windows (PowerShell):**
+```powershell
+$env:SNOWFLAKE_ACCOUNT = "your-account"
+$env:SNOWFLAKE_USER = "your-username"
+$env:SNOWFLAKE_PASSWORD = "your-password"
+$env:SNOWFLAKE_DATABASE = "your-database"
+$env:SNOWFLAKE_SCHEMA = "your-schema"
+$env:SNOWFLAKE_WAREHOUSE = "your-warehouse"
+```
+
+**Windows (Command Prompt):**
+```cmd
+set SNOWFLAKE_ACCOUNT=your-account
+set SNOWFLAKE_USER=your-username
+set SNOWFLAKE_PASSWORD=your-password
+set SNOWFLAKE_DATABASE=your-database
+set SNOWFLAKE_SCHEMA=your-schema
+set SNOWFLAKE_WAREHOUSE=your-warehouse
+```
+
+**Linux/macOS:**
+```bash
+export SNOWFLAKE_ACCOUNT=your-account
+export SNOWFLAKE_USER=your-username
+export SNOWFLAKE_PASSWORD=your-password
+export SNOWFLAKE_DATABASE=your-database
+export SNOWFLAKE_SCHEMA=your-schema
+export SNOWFLAKE_WAREHOUSE=your-warehouse
+```
+
+### Option 2: JSON Configuration File
+
+For compatibility with Interop tests, you can use a JSON configuration file.
+
+**1. Create a JSON configuration file** (e.g., `snowflake_config.json`):
 
 ```json
 {
@@ -46,7 +82,7 @@ Create a file (e.g., `snowflake_config.json`):
 }
 ```
 
-### 2. Set the environment variable
+**2. Set the environment variable:**
 
 **Windows (PowerShell):**
 ```powershell
@@ -63,7 +99,7 @@ set SNOWFLAKE_TEST_CONFIG_FILE=C:\path\to\snowflake_config.json
 export SNOWFLAKE_TEST_CONFIG_FILE=/path/to/snowflake_config.json
 ```
 
-### 3. Run the tests
+### Running the tests
 
 ```bash
 # Run all tests
