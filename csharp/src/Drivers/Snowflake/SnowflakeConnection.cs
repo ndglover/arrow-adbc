@@ -64,6 +64,9 @@ namespace Apache.Arrow.Adbc.Drivers.Snowflake
             
             _queryExecutor = new QueryExecutor(apiClient, streamReader, typeConverter, _config.Account);
             _preparedStatementManager = new PreparedStatementManager(apiClient, typeConverter, _config.Account);
+            
+            // Set Arrow format for query results
+            InitializeArrowFormatAsync(apiClient).GetAwaiter().GetResult();
         }
 
         /// <summary>
@@ -191,6 +194,44 @@ namespace Apache.Arrow.Adbc.Drivers.Snowflake
             if (_disposed)
             {
                 throw new ObjectDisposedException(nameof(SnowflakeConnection));
+            }
+        }
+
+        private async Task InitializeArrowFormatAsync(IRestApiClient apiClient)
+        {
+            try
+            {
+                // Execute ALTER SESSION command to set Arrow format
+                // Use ARROW_FORCE to ensure Arrow format regardless of driver version
+                var alterSessionSql = "ALTER SESSION SET DOTNET_QUERY_RESULT_FORMAT = ARROW_FORCE";
+                var queryRequest = RequestBuilder.BuildQueryRequest(
+                    alterSessionSql,
+                    _config.Database,
+                    _config.Schema,
+                    _config.Warehouse,
+                    _config.Role);
+
+                var accountUrl = _config.Account.Contains(".")
+                    ? $"https://{_config.Account}"
+                    : $"https://{_config.Account}.snowflakecomputing.com";
+                
+                // Add query parameters to URL (required by Snowflake v1 API)
+                var requestId = Guid.NewGuid().ToString();
+                var requestGuid = Guid.NewGuid().ToString();
+                var startTime = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds().ToString();
+                var endpoint = $"{accountUrl}/queries/v1/query-request?requestId={requestId}&request_guid={requestGuid}&startTime={startTime}";
+                
+                await apiClient.PostAsync<object>(
+                    endpoint,
+                    queryRequest,
+                    _pooledConnection!.AuthToken,
+                    default);
+            }
+            catch (Exception ex)
+            {
+                // Don't throw - allow connection to proceed even if Arrow format setup fails
+                // The queries will still work with JSON format
+                Console.WriteLine($"Warning: Failed to initialize Arrow format: {ex.Message}");
             }
         }
     }

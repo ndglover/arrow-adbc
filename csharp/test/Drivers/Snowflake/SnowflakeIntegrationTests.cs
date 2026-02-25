@@ -133,7 +133,8 @@ namespace Apache.Arrow.Adbc.Tests.Drivers.Snowflake
             
             batch.Should().NotBeNull();
             batch!.ColumnCount.Should().Be(1);
-            batch.Schema.GetFieldByName("test_column").Should().NotBeNull();
+            // Snowflake returns column names in uppercase
+            batch.Schema.GetFieldByName("TEST_COLUMN").Should().NotBeNull();
             batch.Length.Should().Be(1);
         }
 

@@ -61,7 +61,7 @@ namespace Apache.Arrow.Adbc.Drivers.Snowflake.Services.TypeConversion
         {
             return typeName.ToUpperInvariant() switch
             {
-                "NUMBER" or "DECIMAL" or "NUMERIC" => SnowflakeTypeCode.Number,
+                "FIXED" or "NUMBER" or "DECIMAL" or "NUMERIC" => SnowflakeTypeCode.Number,
                 "INTEGER" or "INT" or "BIGINT" or "SMALLINT" or "TINYINT" or "BYTEINT" => SnowflakeTypeCode.Integer,
                 "FLOAT" or "FLOAT4" or "FLOAT8" => SnowflakeTypeCode.Float,
                 "DOUBLE" or "DOUBLE PRECISION" or "REAL" => SnowflakeTypeCode.Double,

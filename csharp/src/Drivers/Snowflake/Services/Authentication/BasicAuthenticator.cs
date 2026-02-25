@@ -105,7 +105,7 @@ namespace Apache.Arrow.Adbc.Drivers.Snowflake.Services.Authentication
                 return new AuthenticationToken
                 {
                     AccessToken = responseContent.Data.Token ?? throw new AdbcException("No token received from Snowflake."),
-                    SessionToken = responseContent.Data.SessionToken,
+                    SessionToken = responseContent.Data.Token, // The token field IS the session token
                     MasterToken = responseContent.Data.MasterToken,
                     ExpiresAt = DateTimeOffset.UtcNow.AddSeconds(responseContent.Data.MasterTokenValidityInSeconds),
                     TokenType = "Snowflake"

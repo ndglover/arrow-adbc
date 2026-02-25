@@ -77,21 +77,25 @@ namespace Apache.Arrow.Adbc.Drivers.Snowflake.Services.Transport
         /// <summary>
         /// Gets or sets a value indicating whether the request was successful.
         /// </summary>
+        [System.Text.Json.Serialization.JsonPropertyName("success")]
         public bool Success { get; set; }
 
         /// <summary>
         /// Gets or sets the response message.
         /// </summary>
+        [System.Text.Json.Serialization.JsonPropertyName("message")]
         public string? Message { get; set; }
 
         /// <summary>
         /// Gets or sets the response data.
         /// </summary>
+        [System.Text.Json.Serialization.JsonPropertyName("data")]
         public T? Data { get; set; }
 
         /// <summary>
         /// Gets or sets the error code (if any).
         /// </summary>
+        [System.Text.Json.Serialization.JsonPropertyName("code")]
         public string? Code { get; set; }
     }
 }

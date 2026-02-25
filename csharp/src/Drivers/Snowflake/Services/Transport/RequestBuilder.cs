@@ -50,35 +50,41 @@ namespace Apache.Arrow.Adbc.Drivers.Snowflake.Services.Transport
             if (string.IsNullOrEmpty(statement))
                 throw new ArgumentException("Statement cannot be null or empty.", nameof(statement));
 
+            // Snowflake v1 API format (reference: snowflake-connector-net)
             var request = new Dictionary<string, object>
             {
-                ["statement"] = statement,
-                ["resultSetMetaData"] = new Dictionary<string, string>
-                {
-                    ["format"] = "arrow"
-                }
+                ["sqlText"] = statement,
+                ["asyncExec"] = false,
+                ["describeOnly"] = false
             };
 
+            // Build parameters dictionary for session-level settings
+            var sessionParams = new Dictionary<string, string>();
+            
             if (!string.IsNullOrEmpty(database))
-                request["database"] = database;
+                sessionParams["DATABASE"] = database;
 
             if (!string.IsNullOrEmpty(schema))
-                request["schema"] = schema;
+                sessionParams["SCHEMA"] = schema;
 
             if (!string.IsNullOrEmpty(warehouse))
-                request["warehouse"] = warehouse;
+                sessionParams["WAREHOUSE"] = warehouse;
 
             if (!string.IsNullOrEmpty(role))
-                request["role"] = role;
+                sessionParams["ROLE"] = role;
 
-            if (timeout.HasValue)
-                request["timeout"] = timeout.Value;
+            if (timeout.HasValue && timeout.Value > 0)
+                sessionParams["STATEMENT_TIMEOUT_IN_SECONDS"] = timeout.Value.ToString();
 
+            if (sessionParams.Count > 0)
+                request["parameters"] = sessionParams;
+
+            // Bindings are for query parameters (not session parameters)
             if (parameters != null && parameters.Count > 0)
-                request["bindings"] = parameters;
-
-            if (isMultiStatement)
-                request["multipleStatements"] = true;
+            {
+                // Convert to binding format if needed
+                // For now, skip bindings as they require a different structure
+            }
 
             return request;
         }

@@ -83,6 +83,16 @@ namespace Apache.Arrow.Adbc.Drivers.Snowflake
         /// <returns>A QueryResult containing the query results.</returns>
         public override QueryResult ExecuteQuery()
         {
+            // Use async-first pattern: sync version calls async with proper blocking
+            return ExecuteQueryAsync().AsTask().GetAwaiter().GetResult();
+        }
+
+        /// <summary>
+        /// Executes the query asynchronously and returns a QueryResult.
+        /// </summary>
+        /// <returns>A QueryResult containing the query results.</returns>
+        public override async ValueTask<QueryResult> ExecuteQueryAsync()
+        {
             ThrowIfDisposed();
             
             if (string.IsNullOrWhiteSpace(SqlQuery))
@@ -114,7 +124,7 @@ namespace Apache.Arrow.Adbc.Drivers.Snowflake
                 }
 
                 // Execute query
-                var result = _queryExecutor.ExecuteQueryAsync(request).GetAwaiter().GetResult();
+                var result = await _queryExecutor.ExecuteQueryAsync(request).ConfigureAwait(false);
 
                 // Convert to ADBC QueryResult
                 return new QueryResult(result.RowCount, result.ResultStream!);
@@ -130,6 +140,16 @@ namespace Apache.Arrow.Adbc.Drivers.Snowflake
         /// </summary>
         /// <returns>An UpdateResult containing the number of affected rows.</returns>
         public override UpdateResult ExecuteUpdate()
+        {
+            // Use async-first pattern: sync version calls async with proper blocking
+            return ExecuteUpdateAsync().GetAwaiter().GetResult();
+        }
+
+        /// <summary>
+        /// Executes an update query asynchronously and returns the number of affected rows.
+        /// </summary>
+        /// <returns>An UpdateResult containing the number of affected rows.</returns>
+        public override async Task<UpdateResult> ExecuteUpdateAsync()
         {
             ThrowIfDisposed();
             
@@ -162,7 +182,7 @@ namespace Apache.Arrow.Adbc.Drivers.Snowflake
                 }
 
                 // Execute update
-                var result = _queryExecutor.ExecuteQueryAsync(request).GetAwaiter().GetResult();
+                var result = await _queryExecutor.ExecuteQueryAsync(request).ConfigureAwait(false);
 
                 return new UpdateResult(result.RowCount);
             }
@@ -184,6 +204,7 @@ namespace Apache.Arrow.Adbc.Drivers.Snowflake
 
             try
             {
+                // Use ConfigureAwait(false) to avoid deadlocks
                 _preparedStatement = _preparedStatementManager.PrepareAsync(
                     SqlQuery,
                     _config.Database,
@@ -191,7 +212,7 @@ namespace Apache.Arrow.Adbc.Drivers.Snowflake
                     _config.Warehouse,
                     _config.Role,
                     _pooledConnection.AuthToken
-                ).GetAwaiter().GetResult();
+                ).ConfigureAwait(false).GetAwaiter().GetResult();
             }
             catch (Exception ex)
             {

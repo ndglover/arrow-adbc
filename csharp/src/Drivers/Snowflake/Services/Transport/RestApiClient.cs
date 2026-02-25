@@ -77,6 +77,11 @@ namespace Apache.Arrow.Adbc.Drivers.Snowflake.Services.Transport
                 
                 requestMessage.Content = JsonContent.Create(request);
                 
+                // Debug: Log the request
+                var requestJson = await requestMessage.Content.ReadAsStringAsync();
+                Console.WriteLine($"DEBUG REQUEST to {endpoint}:");
+                Console.WriteLine(requestJson);
+                
                 if (_enableCompression)
                 {
                     requestMessage.Headers.AcceptEncoding.Add(new StringWithQualityHeaderValue("gzip"));
@@ -84,10 +89,32 @@ namespace Apache.Arrow.Adbc.Drivers.Snowflake.Services.Transport
                 }
 
                 var response = await _httpClient.SendAsync(requestMessage, cancellationToken);
+                
+                // Debug: Log response status
+                Console.WriteLine($"DEBUG RESPONSE: {(int)response.StatusCode} {response.StatusCode}");
+                
                 response.EnsureSuccessStatusCode();
 
-                return await response.Content.ReadFromJsonAsync<ApiResponse<T>>(cancellationToken)
+                // Handle compressed responses
+                var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
+                if (response.Content.Headers.ContentEncoding.Contains("gzip"))
+                {
+                    stream = new GZipStream(stream, CompressionMode.Decompress);
+                }
+                else if (response.Content.Headers.ContentEncoding.Contains("deflate"))
+                {
+                    stream = new DeflateStream(stream, CompressionMode.Decompress);
+                }
+
+                // Debug: Read and log the JSON
+                using var reader = new StreamReader(stream);
+                var json = await reader.ReadToEndAsync(cancellationToken);
+                Console.WriteLine($"DEBUG JSON RESPONSE: {json.Substring(0, Math.Min(500, json.Length))}...");
+
+                var result = JsonSerializer.Deserialize<ApiResponse<T>>(json)
                     ?? throw new InvalidOperationException("Failed to deserialize API response.");
+                
+                return result;
             }, cancellationToken);
         }
 
@@ -156,11 +183,17 @@ namespace Apache.Arrow.Adbc.Drivers.Snowflake.Services.Transport
 
         private void ConfigureRequest(HttpRequestMessage request, AuthenticationToken token)
         {
-            // Add authentication header
-            request.Headers.Authorization = new AuthenticationHeaderValue(token.TokenType, token.AccessToken);
+            // Add authentication header - Snowflake uses "Snowflake Token=" format with session token
+            // Reference: snowflake-connector-net uses: "Snowflake Token=\"{sessionToken}\""
+            var sessionToken = token.SessionToken ?? token.AccessToken;
+            var authHeader = $"Snowflake Token=\"{sessionToken}\"";
+            Console.WriteLine($"DEBUG AUTH: Using session token (first 20 chars): {sessionToken.Substring(0, Math.Min(20, sessionToken.Length))}...");
+            Console.WriteLine($"DEBUG AUTH: Has SessionToken: {token.SessionToken != null}, Has MasterToken: {token.MasterToken != null}");
+            request.Headers.Add("Authorization", authHeader);
             
-            // Add Snowflake-specific headers
-            request.Headers.Add("X-Snowflake-Authorization-Token-Type", token.TokenType);
+            // Add Accept header - v1 API uses application/snowflake, not Arrow
+            // Reference: snowflake-connector-net uses "application/snowflake"
+            request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/snowflake"));
             
             // Add user agent
             request.Headers.UserAgent.ParseAdd("ADBC-Snowflake/1.0.0");
