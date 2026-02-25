@@ -57,14 +57,5 @@ namespace Apache.Arrow.Adbc.Drivers.Snowflake
                 throw new ArgumentException($"Failed to parse connection parameters: {ex.Message}", nameof(parameters), ex);
             }
         }
-
-        /// <summary>
-        /// Disposes the driver and releases any resources.
-        /// </summary>
-        public override void Dispose()
-        {
-            // Driver-level cleanup if needed
-            base.Dispose();
-        }
     }
 }
