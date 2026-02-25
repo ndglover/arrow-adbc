@@ -75,14 +75,19 @@ namespace Apache.Arrow.Adbc.Drivers.Snowflake.Services.Authentication
             {
                 Data = new LoginRequestData
                 {
-                    CLIENT_APP_ID = "ADBC",
-                    CLIENT_APP_VERSION = "1.0.0",
+                    // Use .NET as CLIENT_APP_ID to match official Snowflake connector
+                    // This is required for Snowflake to enable Arrow format support
+                    CLIENT_APP_ID = ".NET",
+                    CLIENT_APP_VERSION = "3.1.0", // Match a known version that supports Arrow
                     ACCOUNT_NAME = account,
                     LOGIN_NAME = user,
                     PASSWORD = password,
                     AUTHENTICATOR = "snowflake",
                     CLIENT_ENVIRONMENT = ClientEnvironment.Create(),
-                    SESSION_PARAMETERS = new System.Collections.Generic.Dictionary<string, object>()
+                    SESSION_PARAMETERS = new System.Collections.Generic.Dictionary<string, object>
+                    {
+                        { "DOTNET_QUERY_RESULT_FORMAT", "ARROW" }
+                    }
                 }
             };
 
@@ -106,6 +111,7 @@ namespace Apache.Arrow.Adbc.Drivers.Snowflake.Services.Authentication
                 {
                     AccessToken = responseContent.Data.Token ?? throw new AdbcException("No token received from Snowflake."),
                     SessionToken = responseContent.Data.Token, // The token field IS the session token
+                    SessionId = responseContent.Data.SessionId?.ToString(),
                     MasterToken = responseContent.Data.MasterToken,
                     ExpiresAt = DateTimeOffset.UtcNow.AddSeconds(responseContent.Data.MasterTokenValidityInSeconds),
                     TokenType = "Snowflake"
@@ -166,6 +172,7 @@ namespace Apache.Arrow.Adbc.Drivers.Snowflake.Services.Authentication
         {
             public string? Token { get; set; }
             public string? SessionToken { get; set; }
+            public long? SessionId { get; set; }
             public string? MasterToken { get; set; }
             public int MasterTokenValidityInSeconds { get; set; } = 14400; // Default 4 hours
         }
