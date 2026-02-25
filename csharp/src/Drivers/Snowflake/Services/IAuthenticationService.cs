@@ -32,10 +32,11 @@ namespace Apache.Arrow.Adbc.Drivers.Snowflake.Services
         /// </summary>
         /// <param name="account">The Snowflake account identifier.</param>
         /// <param name="user">The username.</param>
-        /// <param name="config">The authentication configuration.</param>
+        /// <param name="authConfig">The authentication configuration.</param>
+        /// <param name="connectionConfig">The connection configuration containing warehouse, database, schema, and role settings.</param>
         /// <param name="cancellationToken">The cancellation token.</param>
         /// <returns>An authentication token.</returns>
-        Task<AuthenticationToken> AuthenticateAsync(string account, string user, AuthenticationConfig config, CancellationToken cancellationToken = default);
+        Task<AuthenticationToken> AuthenticateAsync(string account, string user, AuthenticationConfig authConfig, ConnectionConfig? connectionConfig = null, CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Refreshes an existing authentication token.

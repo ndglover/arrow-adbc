@@ -21,6 +21,7 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Web;
 using Apache.Arrow.Adbc.Drivers.Snowflake.Configuration;
 
 namespace Apache.Arrow.Adbc.Drivers.Snowflake.Services.Authentication
@@ -43,10 +44,21 @@ namespace Apache.Arrow.Adbc.Drivers.Snowflake.Services.Authentication
         }
 
         /// <inheritdoc/>
+        public Task<AuthenticationToken> AuthenticateAsync(
+            string account,
+            string user,
+            string password,
+            CancellationToken cancellationToken = default)
+        {
+            return AuthenticateAsync(account, user, password, null, cancellationToken);
+        }
+
+        /// <inheritdoc/>
         public async Task<AuthenticationToken> AuthenticateAsync(
             string account,
             string user,
             string password,
+            ConnectionConfig? config,
             CancellationToken cancellationToken = default)
         {
             if (string.IsNullOrEmpty(account))
@@ -58,16 +70,19 @@ namespace Apache.Arrow.Adbc.Drivers.Snowflake.Services.Authentication
             if (string.IsNullOrEmpty(password))
                 throw new ArgumentException("Password cannot be null or empty.", nameof(password));
 
-            var loginUrl = BuildLoginUrl(account);
-            var loginRequest = new
+            var loginUrl = BuildLoginUrl(account, config);
+            var loginRequest = new LoginRequestBody
             {
-                data = new
+                Data = new LoginRequestData
                 {
+                    CLIENT_APP_ID = "ADBC",
+                    CLIENT_APP_VERSION = "1.0.0",
                     ACCOUNT_NAME = account,
                     LOGIN_NAME = user,
                     PASSWORD = password,
-                    CLIENT_APP_ID = "ADBC",
-                    CLIENT_APP_VERSION = "1.0.0"
+                    AUTHENTICATOR = "snowflake",
+                    CLIENT_ENVIRONMENT = ClientEnvironment.Create(),
+                    SESSION_PARAMETERS = new System.Collections.Generic.Dictionary<string, object>()
                 }
             };
 
@@ -79,17 +94,17 @@ namespace Apache.Arrow.Adbc.Drivers.Snowflake.Services.Authentication
                 var responseContent = await response.Content.ReadFromJsonAsync<LoginResponse>(cancellationToken);
                 
                 if (responseContent?.Data == null)
-                    throw new InvalidOperationException("Invalid response from Snowflake authentication service.");
+                    throw new AdbcException("Invalid response from Snowflake authentication service.");
 
                 if (!responseContent.Success)
                 {
                     var errorMessage = responseContent.Message ?? "Authentication failed.";
-                    throw new InvalidOperationException($"Snowflake authentication failed: {errorMessage}");
+                    throw new AdbcException($"Snowflake authentication failed: {errorMessage}");
                 }
 
                 return new AuthenticationToken
                 {
-                    AccessToken = responseContent.Data.Token ?? throw new InvalidOperationException("No token received from Snowflake."),
+                    AccessToken = responseContent.Data.Token ?? throw new AdbcException("No token received from Snowflake."),
                     SessionToken = responseContent.Data.SessionToken,
                     MasterToken = responseContent.Data.MasterToken,
                     ExpiresAt = DateTimeOffset.UtcNow.AddSeconds(responseContent.Data.MasterTokenValidityInSeconds),
@@ -98,22 +113,46 @@ namespace Apache.Arrow.Adbc.Drivers.Snowflake.Services.Authentication
             }
             catch (HttpRequestException ex)
             {
-                throw new InvalidOperationException($"Failed to authenticate with Snowflake: {ex.Message}", ex);
+                throw new AdbcException($"Failed to authenticate with Snowflake: {ex.Message}", ex);
             }
             catch (JsonException ex)
             {
-                throw new InvalidOperationException($"Failed to parse Snowflake authentication response: {ex.Message}", ex);
+                throw new AdbcException($"Failed to parse Snowflake authentication response: {ex.Message}", ex);
             }
         }
 
-        private static string BuildLoginUrl(string account)
+        private static string BuildLoginUrl(string account, ConnectionConfig? config)
         {
             // Snowflake account URL format: https://<account>.snowflakecomputing.com
             var accountUrl = account.Contains(".")
                 ? $"https://{account}"
                 : $"https://{account}.snowflakecomputing.com";
             
-            return $"{accountUrl}{LoginEndpoint}";
+            var uriBuilder = new UriBuilder($"{accountUrl}{LoginEndpoint}");
+            var query = HttpUtility.ParseQueryString(string.Empty);
+
+            // Add optional parameters if provided
+            if (config != null)
+            {
+                if (!string.IsNullOrEmpty(config.Warehouse))
+                    query["warehouse"] = config.Warehouse;
+                
+                if (!string.IsNullOrEmpty(config.Database))
+                    query["databaseName"] = config.Database;
+                
+                if (!string.IsNullOrEmpty(config.Schema))
+                    query["schemaName"] = config.Schema;
+                
+                if (!string.IsNullOrEmpty(config.Role))
+                    query["roleName"] = config.Role;
+            }
+
+            // Add required GUID parameters
+            query["requestId"] = Guid.NewGuid().ToString();
+            query["request_guid"] = Guid.NewGuid().ToString();
+
+            uriBuilder.Query = query.ToString();
+            return uriBuilder.ToString();
         }
 
         private class LoginResponse

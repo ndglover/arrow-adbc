@@ -236,6 +236,7 @@ namespace Apache.Arrow.Adbc.Drivers.Snowflake.Services.ConnectionPool
                 config.Account,
                 config.User,
                 config.Authentication,
+                config,
                 cancellationToken);
 
             return new PooledConnection(

@@ -59,7 +59,8 @@ namespace Apache.Arrow.Adbc.Drivers.Snowflake.Services.Authentication
         public async Task<AuthenticationToken> AuthenticateAsync(
             string account,
             string user,
-            AuthenticationConfig config,
+            AuthenticationConfig authConfig,
+            ConnectionConfig? connectionConfig = null,
             CancellationToken cancellationToken = default)
         {
             if (string.IsNullOrEmpty(account))
@@ -68,25 +69,25 @@ namespace Apache.Arrow.Adbc.Drivers.Snowflake.Services.Authentication
             if (string.IsNullOrEmpty(user))
                 throw new ArgumentException("User cannot be null or empty.", nameof(user));
 
-            if (config == null)
-                throw new ArgumentNullException(nameof(config));
+            if (authConfig == null)
+                throw new ArgumentNullException(nameof(authConfig));
 
             // Validate configuration
-            var validationResults = config.Validate();
+            var validationResults = authConfig.Validate();
             if (validationResults.Any())
             {
                 var errors = string.Join(", ", validationResults.Select(r => r.ErrorMessage));
-                throw new ArgumentException($"Invalid authentication configuration: {errors}", nameof(config));
+                throw new ArgumentException($"Invalid authentication configuration: {errors}", nameof(authConfig));
             }
 
             // Route to appropriate authenticator based on type
-            return config.Type switch
+            return authConfig.Type switch
             {
-                AuthenticationType.UsernamePassword => await _basicAuth.AuthenticateAsync(account, user, config.Password!, cancellationToken),
-                AuthenticationType.KeyPair => await _keyPairAuth.AuthenticateAsync(account, user, config.PrivateKeyPath!, config.PrivateKeyPassphrase, cancellationToken),
-                AuthenticationType.OAuth => await _oauthAuth.AuthenticateAsync(account, user, config.OAuthToken!, cancellationToken),
-                AuthenticationType.Sso or AuthenticationType.ExternalBrowser => await _ssoAuth.AuthenticateAsync(account, user, config.SsoProperties, cancellationToken),
-                _ => throw new NotSupportedException($"Authentication type {config.Type} is not supported.")
+                AuthenticationType.UsernamePassword => await _basicAuth.AuthenticateAsync(account, user, authConfig.Password!, connectionConfig, cancellationToken),
+                AuthenticationType.KeyPair => await _keyPairAuth.AuthenticateAsync(account, user, authConfig.PrivateKeyPath!, authConfig.PrivateKeyPassphrase, cancellationToken),
+                AuthenticationType.OAuth => await _oauthAuth.AuthenticateAsync(account, user, authConfig.OAuthToken!, cancellationToken),
+                AuthenticationType.Sso or AuthenticationType.ExternalBrowser => await _ssoAuth.AuthenticateAsync(account, user, authConfig.SsoProperties, cancellationToken),
+                _ => throw new NotSupportedException($"Authentication type {authConfig.Type} is not supported.")
             };
         }
 
