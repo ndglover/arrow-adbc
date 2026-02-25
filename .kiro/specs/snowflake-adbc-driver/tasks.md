@@ -85,17 +85,17 @@ The implementation follows a layered approach, starting with core infrastructure
   - Ensure all tests pass, ask the user if questions arise.
 
 - [ ] 6. Implement type conversion system
-  - [ ] 6.1 Create Snowflake to Arrow type mapping
+  - [x] 6.1 Create Snowflake to Arrow type mapping
     - Implement TypeConverter with comprehensive type mapping
     - Handle precision preservation for numeric types
     - _Requirements: 6.1, 6.2, 6.4_
   
-  - [ ] 6.2 Implement semi-structured data conversion
+  - [x] 6.2 Implement semi-structured data conversion
     - Add support for VARIANT, JSON, ARRAY, and OBJECT types
     - Convert to appropriate Arrow representations (JSON, List, Struct)
     - _Requirements: 6.3_
   
-  - [ ] 6.3 Implement NULL value handling
+  - [x] 6.3 Implement NULL value handling
     - Ensure NULL values are correctly preserved across all type conversions
     - _Requirements: 6.6_
   
@@ -112,7 +112,7 @@ The implementation follows a layered approach, starting with core infrastructure
     - **Validates: Requirements 6.6**
 
 - [ ] 7. Implement query execution engine
-  - [ ] 7.1 Create QueryExecutor service
+  - [x] 7.1 Create QueryExecutor service
     - Implement query execution with Arrow result processing
     - Support both synchronous and asynchronous execution
     - _Requirements: 4.1, 4.2_
