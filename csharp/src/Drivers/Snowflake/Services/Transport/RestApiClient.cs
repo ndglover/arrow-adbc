@@ -195,8 +195,11 @@ namespace Apache.Arrow.Adbc.Drivers.Snowflake.Services.Transport
             // Reference: snowflake-connector-net uses "application/snowflake"
             request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/snowflake"));
             
-            // Add user agent
-            request.Headers.UserAgent.ParseAdd("ADBC-Snowflake/1.0.0");
+            // Add user agent - match Snowflake connector format to enable Arrow support
+            // Reference: snowflake-connector-net sends ".NET/{version}" as driver name
+            request.Headers.UserAgent.ParseAdd(".NET/1.0.0");
+            request.Headers.UserAgent.ParseAdd("(Windows)");
+            request.Headers.UserAgent.ParseAdd(".NETCoreApp/8.0");
         }
 
         private async Task<TResult> ExecuteWithRetryAsync<TResult>(

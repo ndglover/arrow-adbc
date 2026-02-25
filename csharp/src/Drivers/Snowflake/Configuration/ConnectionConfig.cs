@@ -75,37 +75,8 @@ namespace Apache.Arrow.Adbc.Drivers.Snowflake.Configuration
         public TimeSpan QueryTimeout { get; set; } = TimeSpan.FromMinutes(5);
 
         /// <summary>
-        /// Gets or sets the connection timeout.
-        /// </summary>
-        public TimeSpan ConnectionTimeout { get; set; } = TimeSpan.FromSeconds(30);
-
-        /// <summary>
         /// Gets or sets whether to enable compression for requests.
         /// </summary>
         public bool EnableCompression { get; set; } = true;
-
-        /// <summary>
-        /// Gets or sets the logging level.
-        /// </summary>
-        public LogLevel LogLevel { get; set; } = LogLevel.Information;
-
-        /// <summary>
-        /// Gets or sets additional connection properties.
-        /// </summary>
-        public Dictionary<string, string> AdditionalProperties { get; set; } = new();
-    }
-
-    /// <summary>
-    /// Represents logging levels.
-    /// </summary>
-    public enum LogLevel
-    {
-        Trace,
-        Debug,
-        Information,
-        Warning,
-        Error,
-        Critical,
-        None
     }
 }

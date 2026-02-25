@@ -97,7 +97,15 @@ namespace Apache.Arrow.Adbc.Drivers.Snowflake.Services
                 var requestId = Guid.NewGuid().ToString();
                 var requestGuid = Guid.NewGuid().ToString();
                 var startTime = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds().ToString();
+                
+                // Build endpoint with session ID if available
                 var endpoint = $"{_accountUrl}{QueryEndpoint}?requestId={requestId}&request_guid={requestGuid}&startTime={startTime}";
+                
+                // Add session ID to maintain session state (required for ALTER SESSION settings to persist)
+                if (!string.IsNullOrEmpty(request.AuthToken.SessionId))
+                {
+                    endpoint += $"&sid={request.AuthToken.SessionId}";
+                }
 
                 // Execute the query
                 var response = await _apiClient.PostAsync<SnowflakeQueryResponse>(
@@ -126,6 +134,27 @@ namespace Apache.Arrow.Adbc.Drivers.Snowflake.Services
                 }
 
                 var data = response.Data;
+
+                // Debug: Check what format we received
+                Console.WriteLine($"DEBUG: QueryResultFormat = {data.QueryResultFormat}");
+                Console.WriteLine($"DEBUG: Has RowSetBase64 = {!string.IsNullOrEmpty(data.RowSetBase64)}");
+                Console.WriteLine($"DEBUG: Has RowSet = {data.RowSet != null}");
+                Console.WriteLine($"DEBUG: Has RowType = {data.RowType != null}");
+                
+                // Debug: Check if DOTNET_QUERY_RESULT_FORMAT parameter is in the response
+                if (data.Parameters != null)
+                {
+                    var arrowParam = data.Parameters.FirstOrDefault(p => p.Name?.Contains("QUERY_RESULT_FORMAT") == true);
+                    if (arrowParam != null)
+                    {
+                        Console.WriteLine($"DEBUG: Found parameter {arrowParam.Name} = {arrowParam.Value}");
+                    }
+                    else
+                    {
+                        Console.WriteLine($"DEBUG: DOTNET_QUERY_RESULT_FORMAT parameter not found in response");
+                        Console.WriteLine($"DEBUG: Available parameters: {string.Join(", ", data.Parameters.Take(5).Select(p => p.Name))}...");
+                    }
+                }
 
                 // Check if we have Arrow format data
                 if (!string.IsNullOrEmpty(data.RowSetBase64))

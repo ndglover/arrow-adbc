@@ -58,12 +58,6 @@ namespace Apache.Arrow.Adbc.Drivers.Snowflake.Configuration
             config.Authentication = ParseAuthenticationConfig(parameters);
 
             // Timeout configurations
-            if (parameters.TryGetValue("connection_timeout", out var connectionTimeoutStr) &&
-                int.TryParse(connectionTimeoutStr, out var connectionTimeoutSeconds))
-            {
-                config.ConnectionTimeout = TimeSpan.FromSeconds(connectionTimeoutSeconds);
-            }
-
             if (parameters.TryGetValue("query_timeout", out var queryTimeoutStr) &&
                 int.TryParse(queryTimeoutStr, out var queryTimeoutSeconds))
             {
@@ -77,20 +71,8 @@ namespace Apache.Arrow.Adbc.Drivers.Snowflake.Configuration
                 config.EnableCompression = enableCompression;
             }
 
-            if (parameters.TryGetValue("log_level", out var logLevelStr) &&
-                Enum.TryParse<LogLevel>(logLevelStr, true, out var logLevel))
-            {
-                config.LogLevel = logLevel;
-            }
-
             // Connection pool configuration
             config.PoolConfig = ParseConnectionPoolConfig(parameters);
-
-            // Store any additional parameters
-            foreach (var kvp in parameters.Where(p => !IsKnownParameter(p.Key)))
-            {
-                config.AdditionalProperties[kvp.Key] = kvp.Value;
-            }
 
             // Validate the configuration
             ValidateConfiguration(config);
@@ -177,22 +159,10 @@ namespace Apache.Arrow.Adbc.Drivers.Snowflake.Configuration
         {
             var poolConfig = new ConnectionPoolConfig();
 
-            if (parameters.TryGetValue("pool_enabled", out var poolEnabledStr) &&
-                bool.TryParse(poolEnabledStr, out var poolEnabled))
-            {
-                poolConfig.Enabled = poolEnabled;
-            }
-
             if (parameters.TryGetValue("max_pool_size", out var maxPoolSizeStr) &&
                 int.TryParse(maxPoolSizeStr, out var maxPoolSize))
             {
                 poolConfig.MaxPoolSize = maxPoolSize;
-            }
-
-            if (parameters.TryGetValue("min_pool_size", out var minPoolSizeStr) &&
-                int.TryParse(minPoolSizeStr, out var minPoolSize))
-            {
-                poolConfig.MinPoolSize = minPoolSize;
             }
 
             if (parameters.TryGetValue("pool_idle_timeout", out var idleTimeoutStr) &&
@@ -232,8 +202,8 @@ namespace Apache.Arrow.Adbc.Drivers.Snowflake.Configuration
                 "account", "user", "password", "database", "schema", "warehouse", "role",
                 "authenticator", "private_key_path", "private_key_passphrase",
                 "oauth_token", "oauth_refresh_token",
-                "connection_timeout", "query_timeout", "enable_compression", "log_level",
-                "pool_enabled", "max_pool_size", "min_pool_size", "pool_idle_timeout", "pool_max_lifetime"
+                "query_timeout", "enable_compression",
+                "max_pool_size", "pool_idle_timeout", "pool_max_lifetime"
             };
 
             return knownParameters.Contains(key, StringComparer.OrdinalIgnoreCase) ||

@@ -79,14 +79,13 @@ namespace Apache.Arrow.Adbc.Tests.Drivers.Snowflake.Configuration
         public void Parse_WithTimeoutSettings_ShouldReturnValidConfig()
         {
             // Arrange
-            var connectionString = "account=testaccount;user=testuser;password=testpass;connection_timeout=60;query_timeout=300";
+            var connectionString = "account=testaccount;user=testuser;password=testpass;query_timeout=300";
 
             // Act
             var config = ConnectionStringParser.Parse(connectionString);
 
             // Assert
             Assert.NotNull(config);
-            Assert.Equal(TimeSpan.FromSeconds(60), config.ConnectionTimeout);
             Assert.Equal(TimeSpan.FromSeconds(300), config.QueryTimeout);
         }
 
@@ -94,7 +93,7 @@ namespace Apache.Arrow.Adbc.Tests.Drivers.Snowflake.Configuration
         public void Parse_WithPoolConfiguration_ShouldReturnValidConfig()
         {
             // Arrange
-            var connectionString = "account=testaccount;user=testuser;password=testpass;max_pool_size=20;min_pool_size=2";
+            var connectionString = "account=testaccount;user=testuser;password=testpass;max_pool_size=20";
 
             // Act
             var config = ConnectionStringParser.Parse(connectionString);
@@ -102,7 +101,6 @@ namespace Apache.Arrow.Adbc.Tests.Drivers.Snowflake.Configuration
             // Assert
             Assert.NotNull(config);
             Assert.Equal(20, config.PoolConfig.MaxPoolSize);
-            Assert.Equal(2, config.PoolConfig.MinPoolSize);
         }
 
         [Fact]
@@ -121,21 +119,6 @@ namespace Apache.Arrow.Adbc.Tests.Drivers.Snowflake.Configuration
             Assert.True(config.Authentication.SsoProperties.ContainsKey("provider"));
             Assert.Equal("https://sso.example.com", config.Authentication.SsoProperties["url"]);
             Assert.Equal("okta", config.Authentication.SsoProperties["provider"]);
-        }
-
-        [Fact]
-        public void Parse_WithAdditionalProperties_ShouldStoreInAdditionalProperties()
-        {
-            // Arrange
-            var connectionString = "account=testaccount;user=testuser;password=testpass;custom_property=custom_value";
-
-            // Act
-            var config = ConnectionStringParser.Parse(connectionString);
-
-            // Assert
-            Assert.NotNull(config);
-            Assert.True(config.AdditionalProperties.ContainsKey("custom_property"));
-            Assert.Equal("custom_value", config.AdditionalProperties["custom_property"]);
         }
 
         [Fact]

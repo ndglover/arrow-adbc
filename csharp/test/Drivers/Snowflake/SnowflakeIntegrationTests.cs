@@ -121,7 +121,7 @@ namespace Apache.Arrow.Adbc.Tests.Drivers.Snowflake
             using var statement = connection.CreateStatement();
 
             // Act
-            statement.SqlQuery = "SELECT 1 AS test_column";
+            statement.SqlQuery = "SELECT * FROM SNOWFLAKE_SAMPLE_DATA.TPCDS_SF100TCL.STORE_SALES LIMIT 100";
             var result = await statement.ExecuteQueryAsync();
 
             // Assert

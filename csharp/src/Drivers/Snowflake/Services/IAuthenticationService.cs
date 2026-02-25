@@ -89,6 +89,11 @@ namespace Apache.Arrow.Adbc.Drivers.Snowflake.Services
         public string? MasterToken { get; set; }
 
         /// <summary>
+        /// Gets or sets the session ID.
+        /// </summary>
+        public string? SessionId { get; set; }
+
+        /// <summary>
         /// Gets a value indicating whether the token is expired.
         /// </summary>
         public bool IsExpired => DateTimeOffset.UtcNow >= ExpiresAt;
