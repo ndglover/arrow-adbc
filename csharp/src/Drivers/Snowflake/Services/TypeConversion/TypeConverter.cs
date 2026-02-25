@@ -59,11 +59,12 @@ namespace Apache.Arrow.Adbc.Drivers.Snowflake.Services.TypeConversion
                 SnowflakeTypeCode.Time => Time64Type.Nanosecond,
                 
                 SnowflakeTypeCode.Timestamp or 
-                SnowflakeTypeCode.TimestampNtz => new TimestampType(TimeUnit.Nanosecond, timezone: null),
+                SnowflakeTypeCode.TimestampNtz => new TimestampType(TimeUnit.Nanosecond, timezone: (string?)null),
                 
                 SnowflakeTypeCode.TimestampLtz => new TimestampType(TimeUnit.Nanosecond, timezone: "UTC"),
                 
-                SnowflakeTypeCode.TimestampTz => new TimestampType(TimeUnit.Nanosecond, timezone: snowflakeType.Timezone ?? "UTC"),
+                SnowflakeTypeCode.TimestampTz => new TimestampType(TimeUnit.Nanosecond, 
+                    timezone: snowflakeType.Timezone ?? "UTC"),
                 
                 SnowflakeTypeCode.Variant or 
                 SnowflakeTypeCode.Object => StringType.Default, // JSON as string
@@ -116,12 +117,9 @@ namespace Apache.Arrow.Adbc.Drivers.Snowflake.Services.TypeConversion
                 
                 Time32Type or Time64Type => new SnowflakeDataType { TypeName = "TIME" },
                 
-                TimestampType timestamp => timestamp.Timezone switch
-                {
-                    null => new SnowflakeDataType { TypeName = "TIMESTAMP_NTZ" },
-                    "UTC" => new SnowflakeDataType { TypeName = "TIMESTAMP_LTZ" },
-                    _ => new SnowflakeDataType { TypeName = "TIMESTAMP_TZ", Timezone = timestamp.Timezone }
-                },
+                TimestampType timestamp when timestamp.Timezone == null => new SnowflakeDataType { TypeName = "TIMESTAMP_NTZ" },
+                TimestampType timestamp when timestamp.Timezone == "UTC" => new SnowflakeDataType { TypeName = "TIMESTAMP_LTZ" },
+                TimestampType timestamp => new SnowflakeDataType { TypeName = "TIMESTAMP_TZ", Timezone = timestamp.Timezone },
                 
                 ListType => new SnowflakeDataType { TypeName = "ARRAY" },
                 
@@ -341,7 +339,7 @@ namespace Apache.Arrow.Adbc.Drivers.Snowflake.Services.TypeConversion
 
         private IArrowArray BuildTimestampArray(object?[] values)
         {
-            var builder = new TimestampArray.Builder(new TimestampType(TimeUnit.Nanosecond, timezone: null));
+            var builder = new TimestampArray.Builder(new TimestampType(TimeUnit.Nanosecond, timezone: (string?)null));
             foreach (var value in values)
             {
                 if (value == null)

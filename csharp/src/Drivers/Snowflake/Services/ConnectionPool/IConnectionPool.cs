@@ -19,13 +19,14 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using Apache.Arrow.Adbc.Drivers.Snowflake.Configuration;
+using Apache.Arrow.Adbc.Drivers.Snowflake.Services.Authentication;
 
 namespace Apache.Arrow.Adbc.Drivers.Snowflake.Services.ConnectionPool
 {
     /// <summary>
     /// Manages connection pooling for Snowflake connections.
     /// </summary>
-    public interface IConnectionPool
+    public interface IConnectionPool : IDisposable
     {
         /// <summary>
         /// Acquires a connection from the pool.
@@ -69,7 +70,7 @@ namespace Apache.Arrow.Adbc.Drivers.Snowflake.Services.ConnectionPool
         /// <summary>
         /// Gets the authentication token for this connection.
         /// </summary>
-        Authentication.AuthenticationToken AuthToken { get; }
+        AuthenticationToken AuthToken { get; }
 
         /// <summary>
         /// Gets the connection configuration.

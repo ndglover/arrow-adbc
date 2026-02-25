@@ -28,10 +28,10 @@ namespace Apache.Arrow.Adbc.Drivers.Snowflake.Services.Transport
     /// <summary>
     /// Implements Arrow stream reading for Snowflake responses.
     /// </summary>
-    public class ArrowStreamReader : IArrowStreamReader
+    public class SnowflakeArrowStreamReader : IArrowStreamReader
     {
         /// <inheritdoc/>
-        public async Task<ArrowArrayStream> ReadStreamAsync(
+        public async Task<IArrowArrayStream> ReadStreamAsync(
             Stream arrowStream,
             CancellationToken cancellationToken = default)
         {
@@ -44,10 +44,14 @@ namespace Apache.Arrow.Adbc.Drivers.Snowflake.Services.Transport
                 var batches = new List<RecordBatch>();
                 Schema? schema = null;
 
-                using (var reader = new ArrowStreamReader(arrowStream, leaveOpen: true))
+                using (var reader = new Apache.Arrow.Ipc.ArrowStreamReader(arrowStream, leaveOpen: true))
                 {
-                    schema = await reader.ReadNextRecordBatchAsync(cancellationToken)
-                        .ContinueWith(t => reader.Schema, cancellationToken);
+                    // Read schema first
+                    var firstBatch = await reader.ReadNextRecordBatchAsync(cancellationToken);
+                    schema = reader.Schema;
+                    
+                    if (firstBatch != null)
+                        batches.Add(firstBatch);
 
                     RecordBatch? batch;
                     while ((batch = await reader.ReadNextRecordBatchAsync(cancellationToken)) != null)
@@ -78,7 +82,7 @@ namespace Apache.Arrow.Adbc.Drivers.Snowflake.Services.Transport
 
             try
             {
-                using var reader = new ArrowStreamReader(arrowStream, leaveOpen: true);
+                using var reader = new Apache.Arrow.Ipc.ArrowStreamReader(arrowStream, leaveOpen: true);
                 return await reader.ReadNextRecordBatchAsync(cancellationToken);
             }
             catch (Exception ex)
@@ -95,7 +99,7 @@ namespace Apache.Arrow.Adbc.Drivers.Snowflake.Services.Transport
 
             try
             {
-                using var reader = new ArrowStreamReader(arrowStream, leaveOpen: true);
+                using var reader = new Apache.Arrow.Ipc.ArrowStreamReader(arrowStream, leaveOpen: true);
                 return reader.Schema;
             }
             catch (Exception ex)
@@ -105,9 +109,9 @@ namespace Apache.Arrow.Adbc.Drivers.Snowflake.Services.Transport
         }
 
         /// <summary>
-        /// In-memory implementation of ArrowArrayStream.
+        /// In-memory implementation of IArrowArrayStream.
         /// </summary>
-        private class InMemoryArrowArrayStream : ArrowArrayStream
+        private class InMemoryArrowArrayStream : IArrowArrayStream
         {
             private readonly Schema _schema;
             private readonly List<RecordBatch> _batches;
@@ -120,9 +124,9 @@ namespace Apache.Arrow.Adbc.Drivers.Snowflake.Services.Transport
                 _currentIndex = 0;
             }
 
-            public override Schema Schema => _schema;
+            public Schema Schema => _schema;
 
-            public override ValueTask<RecordBatch?> ReadNextRecordBatchAsync(CancellationToken cancellationToken = default)
+            public ValueTask<RecordBatch?> ReadNextRecordBatchAsync(CancellationToken cancellationToken = default)
             {
                 if (_currentIndex >= _batches.Count)
                     return new ValueTask<RecordBatch?>((RecordBatch?)null);
@@ -132,17 +136,13 @@ namespace Apache.Arrow.Adbc.Drivers.Snowflake.Services.Transport
                 return new ValueTask<RecordBatch?>(batch);
             }
 
-            protected override void Dispose(bool disposing)
+            public void Dispose()
             {
-                if (disposing)
+                foreach (var batch in _batches)
                 {
-                    foreach (var batch in _batches)
-                    {
-                        batch?.Dispose();
-                    }
-                    _batches.Clear();
+                    batch?.Dispose();
                 }
-                base.Dispose(disposing);
+                _batches.Clear();
             }
         }
     }

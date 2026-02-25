@@ -139,7 +139,7 @@ namespace Apache.Arrow.Adbc.Drivers.Snowflake.Services.TypeConversion
                 throw new ArgumentNullException(nameof(sampleArray));
 
             // Infer element type from first non-null element
-            var elementType = StringType.Default; // Default to string
+            IArrowType elementType = StringType.Default; // Default to string
             
             foreach (var element in sampleArray)
             {

@@ -35,7 +35,10 @@ namespace Apache.Arrow.Adbc.Drivers.Snowflake.Services.ConnectionPool
         private readonly ConcurrentDictionary<string, ConnectionPoolEntry> _pools;
         private readonly SemaphoreSlim _poolSemaphore;
         private readonly Timer _cleanupTimer;
-        private readonly PoolStatistics _statistics;
+        private long _totalConnectionsCreated;
+        private long _totalConnectionsClosed;
+        private long _totalConnectionReuses;
+        private int _waitingRequests;
         private bool _disposed;
 
         /// <summary>
@@ -47,7 +50,6 @@ namespace Apache.Arrow.Adbc.Drivers.Snowflake.Services.ConnectionPool
             _authService = authService ?? throw new ArgumentNullException(nameof(authService));
             _pools = new ConcurrentDictionary<string, ConnectionPoolEntry>();
             _poolSemaphore = new SemaphoreSlim(1, 1);
-            _statistics = new PoolStatistics();
 
             // Start cleanup timer (runs every 60 seconds)
             _cleanupTimer = new Timer(CleanupCallback, null, TimeSpan.FromSeconds(60), TimeSpan.FromSeconds(60));
@@ -74,13 +76,13 @@ namespace Apache.Arrow.Adbc.Drivers.Snowflake.Services.ConnectionPool
                     if (await connection.ValidateAsync(cancellationToken))
                     {
                         poolEntry.ActiveConnections.Add(connection);
-                        Interlocked.Increment(ref _statistics.TotalConnectionReuses);
+                        Interlocked.Increment(ref _totalConnectionReuses);
                         return connection;
                     }
 
                     // Connection is invalid, dispose it
                     connection.Dispose();
-                    Interlocked.Increment(ref _statistics.TotalConnectionsClosed);
+                    Interlocked.Increment(ref _totalConnectionsClosed);
                 }
 
                 // Check if we can create a new connection
@@ -88,7 +90,7 @@ namespace Apache.Arrow.Adbc.Drivers.Snowflake.Services.ConnectionPool
                 if (totalConnections >= config.PoolConfig.MaxPoolSize)
                 {
                     // Wait for a connection to become available
-                    Interlocked.Increment(ref _statistics.WaitingRequests);
+                    Interlocked.Increment(ref _waitingRequests);
                     throw new InvalidOperationException(
                         $"Connection pool limit reached ({config.PoolConfig.MaxPoolSize}). " +
                         "No connections available.");
@@ -97,7 +99,7 @@ namespace Apache.Arrow.Adbc.Drivers.Snowflake.Services.ConnectionPool
                 // Create a new connection
                 var newConnection = await CreateConnectionAsync(config, cancellationToken);
                 poolEntry.ActiveConnections.Add(newConnection);
-                Interlocked.Increment(ref _statistics.TotalConnectionsCreated);
+                Interlocked.Increment(ref _totalConnectionsCreated);
                 
                 return newConnection;
             }
@@ -125,14 +127,14 @@ namespace Apache.Arrow.Adbc.Drivers.Snowflake.Services.ConnectionPool
                 // Check if connection is still valid and within lifetime
                 var connectionAge = DateTimeOffset.UtcNow - connection.CreatedAt;
                 if (connection.IsValid && 
-                    connectionAge < connection.Config.PoolConfig.ConnectionLifetime)
+                    connectionAge < connection.Config.PoolConfig.MaxConnectionLifetime)
                 {
                     poolEntry.IdleConnections.Enqueue(connection);
                 }
                 else
                 {
                     connection.Dispose();
-                    Interlocked.Increment(ref _statistics.TotalConnectionsClosed);
+                    Interlocked.Increment(ref _totalConnectionsClosed);
                 }
             }
             finally
@@ -156,7 +158,7 @@ namespace Apache.Arrow.Adbc.Drivers.Snowflake.Services.ConnectionPool
             {
                 poolEntry.ActiveConnections.Remove(connection);
                 connection.Dispose();
-                Interlocked.Increment(ref _statistics.TotalConnectionsClosed);
+                Interlocked.Increment(ref _totalConnectionsClosed);
             }
             finally
             {
@@ -175,10 +177,10 @@ namespace Apache.Arrow.Adbc.Drivers.Snowflake.Services.ConnectionPool
                     TotalConnections = _pools.Values.Sum(p => p.ActiveConnections.Count + p.IdleConnections.Count),
                     ActiveConnections = _pools.Values.Sum(p => p.ActiveConnections.Count),
                     IdleConnections = _pools.Values.Sum(p => p.IdleConnections.Count),
-                    WaitingRequests = _statistics.WaitingRequests,
-                    TotalConnectionsCreated = _statistics.TotalConnectionsCreated,
-                    TotalConnectionsClosed = _statistics.TotalConnectionsClosed,
-                    TotalConnectionReuses = _statistics.TotalConnectionReuses
+                    WaitingRequests = _waitingRequests,
+                    TotalConnectionsCreated = _totalConnectionsCreated,
+                    TotalConnectionsClosed = _totalConnectionsClosed,
+                    TotalConnectionReuses = _totalConnectionReuses
                 };
 
                 return Task.FromResult(stats);
@@ -268,7 +270,7 @@ namespace Apache.Arrow.Adbc.Drivers.Snowflake.Services.ConnectionPool
                         var connectionAge = now - connection.CreatedAt;
 
                         if (idleTime > poolEntry.Config.PoolConfig.IdleTimeout ||
-                            connectionAge > poolEntry.Config.PoolConfig.ConnectionLifetime ||
+                            connectionAge > poolEntry.Config.PoolConfig.MaxConnectionLifetime ||
                             !connection.IsValid)
                         {
                             connectionsToRemove.Add(connection);
@@ -284,7 +286,7 @@ namespace Apache.Arrow.Adbc.Drivers.Snowflake.Services.ConnectionPool
                     foreach (var connection in connectionsToRemove)
                     {
                         connection.Dispose();
-                        Interlocked.Increment(ref _statistics.TotalConnectionsClosed);
+                        Interlocked.Increment(ref _totalConnectionsClosed);
                     }
                 }
             }

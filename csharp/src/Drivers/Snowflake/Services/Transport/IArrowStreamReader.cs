@@ -34,7 +34,7 @@ namespace Apache.Arrow.Adbc.Drivers.Snowflake.Services.Transport
         /// <param name="arrowStream">The Arrow stream to read.</param>
         /// <param name="cancellationToken">The cancellation token.</param>
         /// <returns>An Arrow array stream.</returns>
-        Task<ArrowArrayStream> ReadStreamAsync(Stream arrowStream, CancellationToken cancellationToken = default);
+        Task<IArrowArrayStream> ReadStreamAsync(Stream arrowStream, CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Reads a single record batch from an Arrow stream.

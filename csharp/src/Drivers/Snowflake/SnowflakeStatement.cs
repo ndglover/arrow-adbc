@@ -106,18 +106,18 @@ namespace Apache.Arrow.Adbc.Drivers.Snowflake
                 if (_boundParameters != null)
                 {
                     var parameterSet = _typeConverter.ConvertArrowBatchToParameters(_boundParameters);
-                    request.Parameters = parameterSet.Parameters;
+                    foreach (var kvp in parameterSet.Parameters)
+                    {
+                        if (kvp.Value != null)
+                            request.Parameters[kvp.Key] = kvp.Value;
+                    }
                 }
 
                 // Execute query
                 var result = _queryExecutor.ExecuteQueryAsync(request).GetAwaiter().GetResult();
 
                 // Convert to ADBC QueryResult
-                return new QueryResult
-                {
-                    Stream = result.ResultStream,
-                    RowsAffected = result.RowCount
-                };
+                return new QueryResult(result.RowCount, result.ResultStream!);
             }
             catch (Exception ex)
             {
@@ -154,16 +154,17 @@ namespace Apache.Arrow.Adbc.Drivers.Snowflake
                 if (_boundParameters != null)
                 {
                     var parameterSet = _typeConverter.ConvertArrowBatchToParameters(_boundParameters);
-                    request.Parameters = parameterSet.Parameters;
+                    foreach (var kvp in parameterSet.Parameters)
+                    {
+                        if (kvp.Value != null)
+                            request.Parameters[kvp.Key] = kvp.Value;
+                    }
                 }
 
                 // Execute update
                 var result = _queryExecutor.ExecuteQueryAsync(request).GetAwaiter().GetResult();
 
-                return new UpdateResult
-                {
-                    RowsAffected = result.RowCount
-                };
+                return new UpdateResult(result.RowCount);
             }
             catch (Exception ex)
             {

@@ -82,7 +82,7 @@ namespace Apache.Arrow.Adbc.Drivers.Snowflake.Services.ConnectionPool
 
                 // Check if connection has exceeded its lifetime
                 var connectionAge = DateTimeOffset.UtcNow - CreatedAt;
-                if (connectionAge > Config.PoolConfig.ConnectionLifetime)
+                if (connectionAge > Config.PoolConfig.MaxConnectionLifetime)
                     return false;
 
                 return true;
