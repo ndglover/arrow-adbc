@@ -362,6 +362,7 @@ namespace Apache.Arrow.Adbc.Drivers.Snowflake.Services.TypeConversion
             return array switch
             {
                 BooleanArray boolArray => boolArray.GetValue(index),
+                Int32Array int32Array => int32Array.GetValue(index),
                 Int64Array int64Array => int64Array.GetValue(index),
                 FloatArray floatArray => floatArray.GetValue(index),
                 DoubleArray doubleArray => doubleArray.GetValue(index),
