@@ -33,7 +33,6 @@ namespace Apache.Arrow.Adbc.Drivers.Snowflake.Services
     public class QueryExecutor : IQueryExecutor
     {
         private readonly IRestApiClient _apiClient;
-        private readonly IArrowStreamReader _streamReader;
         private readonly ITypeConverter _typeConverter;
         private readonly string _accountUrl;
         private const string QueryEndpoint = "/queries/v1/query-request";
@@ -43,17 +42,14 @@ namespace Apache.Arrow.Adbc.Drivers.Snowflake.Services
         /// Initializes a new instance of the <see cref="QueryExecutor"/> class.
         /// </summary>
         /// <param name="apiClient">The REST API client.</param>
-        /// <param name="streamReader">The Arrow stream reader.</param>
         /// <param name="typeConverter">The type converter.</param>
         /// <param name="account">The Snowflake account identifier.</param>
         public QueryExecutor(
             IRestApiClient apiClient,
-            IArrowStreamReader streamReader,
             ITypeConverter typeConverter,
             string account)
         {
             _apiClient = apiClient ?? throw new ArgumentNullException(nameof(apiClient));
-            _streamReader = streamReader ?? throw new ArgumentNullException(nameof(streamReader));
             _typeConverter = typeConverter ?? throw new ArgumentNullException(nameof(typeConverter));
             
             if (string.IsNullOrEmpty(account))

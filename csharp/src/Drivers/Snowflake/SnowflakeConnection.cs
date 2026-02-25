@@ -59,10 +59,9 @@ namespace Apache.Arrow.Adbc.Drivers.Snowflake
             // Initialize services
             var httpClient = new HttpClient();
             var apiClient = new RestApiClient(httpClient, _config.EnableCompression);
-            var streamReader = new SnowflakeArrowStreamReader();
             var typeConverter = new TypeConverter();
             
-            _queryExecutor = new QueryExecutor(apiClient, streamReader, typeConverter, _config.Account);
+            _queryExecutor = new QueryExecutor(apiClient, typeConverter, _config.Account);
             _preparedStatementManager = new PreparedStatementManager(apiClient, typeConverter, _config.Account);
         }
 
