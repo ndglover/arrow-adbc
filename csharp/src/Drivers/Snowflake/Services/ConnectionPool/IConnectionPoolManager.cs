@@ -42,12 +42,7 @@ public interface IConnectionPoolManager : IDisposable
     /// </summary>
     /// <param name="connection">The connection to release.</param>
     void ReleaseConnection(IPooledConnection connection);
-
-    /// <summary>
-    /// Invalidates a connection and removes it from the pool.
-    /// </summary>
-    /// <param name="connection">The connection to invalidate.</param>
-    void InvalidateConnection(IPooledConnection connection);
+   
 
     /// <summary>
     /// Gets statistics about the connection pool.

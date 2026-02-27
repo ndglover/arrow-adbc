@@ -27,8 +27,8 @@ namespace Apache.Arrow.Adbc.Drivers.Snowflake.Services.ConnectionPool;
 /// </summary>
 public class PooledConnection : IPooledConnection
 {
-    private bool _disposed;
     private DateTimeOffset _lastUsedAt;
+    private bool _disposed;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="PooledConnection"/> class.
@@ -48,62 +48,27 @@ public class PooledConnection : IPooledConnection
         _lastUsedAt = CreatedAt;
     }
 
-    /// <inheritdoc/>
     public string ConnectionId { get; }
 
-    /// <inheritdoc/>
     public AuthenticationToken AuthToken { get; }
 
-    /// <inheritdoc/>
     public ConnectionConfig Config { get; }
 
-    /// <inheritdoc/>
     public DateTimeOffset CreatedAt { get; }
 
-    /// <inheritdoc/>
     public DateTimeOffset LastUsedAt
     {
         get => _lastUsedAt;
-        private set => _lastUsedAt = value;
+        set => _lastUsedAt = value;
     }
 
-    /// <inheritdoc/>
-    public bool IsValid
-    {
-        get
-        {
-            if (_disposed)
-                return false;
+    public bool IsDisposed { get; internal set; }
 
-            // Check if token is expired
-            if (AuthToken.IsExpired)
-                return false;
+    public bool IsTokenExpired => AuthToken.IsExpired;
 
-            // Check if connection has exceeded its lifetime
-            var connectionAge = DateTimeOffset.UtcNow - CreatedAt;
-            if (connectionAge > Config.PoolConfig.MaxConnectionLifetime)
-                return false;
+    public bool IsFaulted { get; private set; }
 
-            return true;
-        }
-    }
-
-    /// <inheritdoc/>
-    public bool Validate()
-    {
-        if (!IsValid)
-            return false;
-
-        try
-        {
-            LastUsedAt = DateTimeOffset.UtcNow;
-            return true;
-        }
-        catch
-        {
-            return false;
-        }
-    }
+    public void MarkFaulted() => IsFaulted = true;
 
     /// <summary>
     /// Disposes the connection.

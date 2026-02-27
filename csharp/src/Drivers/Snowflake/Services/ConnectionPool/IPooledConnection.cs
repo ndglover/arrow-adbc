@@ -50,16 +50,25 @@ public interface IPooledConnection : IDisposable
     /// <summary>
     /// Gets the time when the connection was last used.
     /// </summary>
-    DateTimeOffset LastUsedAt { get; }
+    DateTimeOffset LastUsedAt { get; internal set; }
 
     /// <summary>
-    /// Gets a value indicating whether the connection is valid.
+    /// Gets a value indicating whether the connection is disposed.
     /// </summary>
-    bool IsValid { get; }
+    bool IsDisposed { get; }
 
     /// <summary>
-    /// Validates the connection health.
+    /// Gets a value indicating whether the authentication token is expired.
     /// </summary>
-    /// <returns>True if the connection is healthy, false otherwise.</returns>
-    bool Validate();
+    bool IsTokenExpired { get; }
+
+    /// <summary>
+    /// Gets a value indicating whether the connection is faulted.
+    /// </summary>
+    bool IsFaulted { get; }
+
+    /// <summary>
+    /// Marks the connection as faulted.
+    /// </summary>
+    void MarkFaulted();
 }

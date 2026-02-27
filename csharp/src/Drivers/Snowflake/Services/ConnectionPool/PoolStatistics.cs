@@ -40,13 +40,6 @@ public class PoolStatistics
     public int IdleConnections { get; set; }
 
     /// <summary>
-    /// Gets or sets the number of times the pool limit was exceeded.
-    /// This property is obsolete and always returns 0 with the semaphore-based pool implementation.
-    /// </summary>
-    [Obsolete("This property is no longer tracked with the semaphore-based pool implementation and always returns 0.")]
-    public int PoolLimitExceeded { get; set; }
-
-    /// <summary>
     /// Gets or sets the total number of connections created.
     /// </summary>
     public long TotalConnectionsCreated { get; set; }
@@ -60,4 +53,9 @@ public class PoolStatistics
     /// Gets or sets the total number of connection reuses.
     /// </summary>
     public long TotalConnectionReuses { get; set; }
+
+    /// <summary>
+    /// Gets or sets the number of threads currently waiting for a connection
+    /// </summary>
+    public long PendingRequests { get; set; }
 }
