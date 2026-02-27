@@ -15,6 +15,8 @@
  * limitations under the License.
  */
 
+using System;
+
 namespace Apache.Arrow.Adbc.Drivers.Snowflake.Services.ConnectionPool;
 
 /// <summary>
@@ -39,7 +41,9 @@ public class PoolStatistics
 
     /// <summary>
     /// Gets or sets the number of times the pool limit was exceeded.
+    /// This property is obsolete and always returns 0 with the semaphore-based pool implementation.
     /// </summary>
+    [Obsolete("This property is no longer tracked with the semaphore-based pool implementation and always returns 0.")]
     public int PoolLimitExceeded { get; set; }
 
     /// <summary>
