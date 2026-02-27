@@ -38,9 +38,9 @@ public class PoolStatistics
     public int IdleConnections { get; set; }
 
     /// <summary>
-    /// Gets or sets the number of connection requests waiting.
+    /// Gets or sets the number of times the pool limit was exceeded.
     /// </summary>
-    public int WaitingRequests { get; set; }
+    public int PoolLimitExceeded { get; set; }
 
     /// <summary>
     /// Gets or sets the total number of connections created.

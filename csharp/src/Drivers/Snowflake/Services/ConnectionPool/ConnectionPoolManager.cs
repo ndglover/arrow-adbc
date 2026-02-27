@@ -32,12 +32,12 @@ public class ConnectionPoolManager : IConnectionPoolManager, IDisposable
 {
     private readonly IAuthenticationService _authService;
     private readonly ConcurrentDictionary<string, ConnectionPoolEntry> _pools;
-    private readonly SemaphoreSlim _poolSemaphore;
-    private readonly Timer _cleanupTimer;
+    private readonly CancellationTokenSource _cts = new();
+    private Task? _cleanupTask;
     private long _totalConnectionsCreated;
     private long _totalConnectionsClosed;
     private long _totalConnectionReuses;
-    private int _waitingRequests;
+    private int _poolLimitExceeded;
     private bool _disposed;
 
     /// <summary>
@@ -48,10 +48,6 @@ public class ConnectionPoolManager : IConnectionPoolManager, IDisposable
     {
         _authService = authService ?? throw new ArgumentNullException(nameof(authService));
         _pools = new ConcurrentDictionary<string, ConnectionPoolEntry>();
-        _poolSemaphore = new SemaphoreSlim(1, 1);
-
-        // Start cleanup timer (runs every 60 seconds)
-        _cleanupTimer = new Timer(CleanupCallback, null, TimeSpan.FromSeconds(60), TimeSpan.FromSeconds(60));
     }
 
     /// <inheritdoc/>
@@ -62,16 +58,22 @@ public class ConnectionPoolManager : IConnectionPoolManager, IDisposable
         if (config == null)
             throw new ArgumentNullException(nameof(config));
 
+        EnsureCleanupStarted();
+
         var poolKey = GeneratePoolKey(config);
         var poolEntry = _pools.GetOrAdd(poolKey, _ => new ConnectionPoolEntry(config));
 
-        await _poolSemaphore.WaitAsync(cancellationToken);
+        SessionCreationToken? token = null;
+        var semaphoreAcquired = false;
+
         try
         {
-            // LIFO: Reuse most recently returned connection to keep hot set small
+            await poolEntry.Semaphore.WaitAsync(cancellationToken);
+            semaphoreAcquired = true;
+
             while (poolEntry.IdleConnections.TryPop(out var connection))
             {
-                if (await connection.ValidateAsync(cancellationToken))
+                if (connection.Validate())
                 {
                     poolEntry.ActiveConnections.Add(connection);
                     Interlocked.Increment(ref _totalConnectionReuses);
@@ -82,24 +84,43 @@ public class ConnectionPoolManager : IConnectionPoolManager, IDisposable
                 Interlocked.Increment(ref _totalConnectionsClosed);
             }
 
-            var totalConnections = poolEntry.ActiveConnections.Count + poolEntry.IdleConnections.Count;
-            if (totalConnections >= config.PoolConfig.MaxPoolSize)
+            var currentPoolSize = poolEntry.GetCurrentPoolSize();
+            if (currentPoolSize >= config.PoolConfig.MaxPoolSize)
             {
-                Interlocked.Increment(ref _waitingRequests);
+                Interlocked.Increment(ref _poolLimitExceeded);
                 throw new InvalidOperationException(
                     $"Connection pool limit reached ({config.PoolConfig.MaxPoolSize}). " +
                     "No connections available.");
             }
 
+            token = poolEntry.TokenCounter.NewToken();
+            poolEntry.Semaphore.Release();
+            semaphoreAcquired = false;
+
             var newConnection = await CreateConnectionAsync(config, cancellationToken);
+
+            await poolEntry.Semaphore.WaitAsync(cancellationToken);
+            semaphoreAcquired = true;
+            poolEntry.TokenCounter.RemoveToken(token);
             poolEntry.ActiveConnections.Add(newConnection);
             Interlocked.Increment(ref _totalConnectionsCreated);
-            
+
             return newConnection;
+        }
+        catch
+        {
+            if (token != null)
+            {
+                poolEntry.TokenCounter.RemoveToken(token);
+            }
+            throw;
         }
         finally
         {
-            _poolSemaphore.Release();
+            if (semaphoreAcquired)
+            {
+                poolEntry.Semaphore.Release();
+            }
         }
     }
 
@@ -113,7 +134,7 @@ public class ConnectionPoolManager : IConnectionPoolManager, IDisposable
         if (!_pools.TryGetValue(poolKey, out var poolEntry))
             return;
 
-        _poolSemaphore.Wait();
+        poolEntry.Semaphore.Wait();
         try
         {
             poolEntry.ActiveConnections.Remove(connection);
@@ -132,7 +153,7 @@ public class ConnectionPoolManager : IConnectionPoolManager, IDisposable
         }
         finally
         {
-            _poolSemaphore.Release();
+            poolEntry.Semaphore.Release();
         }
     }
 
@@ -146,7 +167,7 @@ public class ConnectionPoolManager : IConnectionPoolManager, IDisposable
         if (!_pools.TryGetValue(poolKey, out var poolEntry))
             return;
 
-        _poolSemaphore.Wait();
+        poolEntry.Semaphore.Wait();
         try
         {
             poolEntry.ActiveConnections.Remove(connection);
@@ -155,33 +176,42 @@ public class ConnectionPoolManager : IConnectionPoolManager, IDisposable
         }
         finally
         {
-            _poolSemaphore.Release();
+            poolEntry.Semaphore.Release();
         }
     }
 
     /// <inheritdoc/>
-    public Task<PoolStatistics> GetStatisticsAsync()
+    public async Task<PoolStatistics> GetStatisticsAsync()
     {
-        _poolSemaphore.Wait();
-        try
-        {
-            var stats = new PoolStatistics
-            {
-                TotalConnections = _pools.Values.Sum(p => p.ActiveConnections.Count + p.IdleConnections.Count),
-                ActiveConnections = _pools.Values.Sum(p => p.ActiveConnections.Count),
-                IdleConnections = _pools.Values.Sum(p => p.IdleConnections.Count),
-                WaitingRequests = _waitingRequests,
-                TotalConnectionsCreated = _totalConnectionsCreated,
-                TotalConnectionsClosed = _totalConnectionsClosed,
-                TotalConnectionReuses = _totalConnectionReuses
-            };
+        var totalConnections = 0;
+        var activeConnections = 0;
+        var idleConnections = 0;
 
-            return Task.FromResult(stats);
-        }
-        finally
+        foreach (var poolEntry in _pools.Values)
         {
-            _poolSemaphore.Release();
+            await poolEntry.Semaphore.WaitAsync();
+            try
+            {
+                totalConnections += poolEntry.GetCurrentPoolSize();
+                activeConnections += poolEntry.ActiveConnections.Count;
+                idleConnections += poolEntry.IdleConnections.Count;
+            }
+            finally
+            {
+                poolEntry.Semaphore.Release();
+            }
         }
+
+        return new PoolStatistics
+        {
+            TotalConnections = totalConnections,
+            ActiveConnections = activeConnections,
+            IdleConnections = idleConnections,
+            PoolLimitExceeded = _poolLimitExceeded,
+            TotalConnectionsCreated = _totalConnectionsCreated,
+            TotalConnectionsClosed = _totalConnectionsClosed,
+            TotalConnectionReuses = _totalConnectionReuses
+        };
     }
 
     /// <summary>
@@ -194,11 +224,24 @@ public class ConnectionPoolManager : IConnectionPoolManager, IDisposable
 
         _disposed = true;
 
-        _cleanupTimer?.Dispose();
-        _poolSemaphore?.Wait();
-        try
+        _cts.Cancel();
+        _cts.Dispose();
+
+        if (_cleanupTask != null)
         {
-            foreach (var poolEntry in _pools.Values)
+            try
+            {
+                _cleanupTask.Wait(TimeSpan.FromSeconds(5));
+            }
+            catch (OperationCanceledException)
+            {
+            }
+        }
+
+        foreach (var poolEntry in _pools.Values)
+        {
+            poolEntry.Semaphore.Wait();
+            try
             {
                 foreach (var connection in poolEntry.ActiveConnections)
                 {
@@ -209,14 +252,99 @@ public class ConnectionPoolManager : IConnectionPoolManager, IDisposable
                 {
                     connection.Dispose();
                 }
-            }
 
-            _pools.Clear();
+                poolEntry.TokenCounter.Reset();
+            }
+            finally
+            {
+                poolEntry.Semaphore.Release();
+                poolEntry.Semaphore.Dispose();
+            }
+        }
+
+        _pools.Clear();
+    }
+
+    private void EnsureCleanupStarted()
+    {
+        if (_cleanupTask == null)
+        {
+            lock (_cts)
+            {
+                if (_cleanupTask == null)
+                {
+                    _cleanupTask = CleanupLoopAsync();
+                }
+            }
+        }
+    }
+
+    private async Task CleanupLoopAsync()
+    {
+        var timer = new PeriodicTimer(TimeSpan.FromSeconds(60));
+        try
+        {
+            while (await timer.WaitForNextTickAsync(_cts.Token))
+            {
+                await CleanupAsync();
+            }
+        }
+        catch (OperationCanceledException)
+        {
         }
         finally
         {
-            _poolSemaphore?.Release();
-            _poolSemaphore?.Dispose();
+            timer.Dispose();
+        }
+    }
+
+    private async Task CleanupAsync()
+    {
+        if (_disposed)
+            return;
+
+        foreach (var poolEntry in _pools.Values)
+        {
+            try
+            {
+                await poolEntry.Semaphore.WaitAsync(_cts.Token);
+                try
+                {
+                    var now = DateTimeOffset.UtcNow;
+                    var connectionsToRemove = new List<IPooledConnection>();
+
+                    while (poolEntry.IdleConnections.TryPop(out var connection))
+                    {
+                        var idleTime = now - connection.LastUsedAt;
+                        var connectionAge = now - connection.CreatedAt;
+
+                        if (idleTime > poolEntry.Config.PoolConfig.IdleTimeout ||
+                            connectionAge > poolEntry.Config.PoolConfig.MaxConnectionLifetime ||
+                            !connection.IsValid)
+                        {
+                            connectionsToRemove.Add(connection);
+                        }
+                        else
+                        {
+                            poolEntry.IdleConnections.Push(connection);
+                        }
+                    }
+
+                    foreach (var connection in connectionsToRemove)
+                    {
+                        connection.Dispose();
+                        Interlocked.Increment(ref _totalConnectionsClosed);
+                    }
+                }
+                finally
+                {
+                    poolEntry.Semaphore.Release();
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                break;
+            }
         }
     }
 
@@ -242,61 +370,26 @@ public class ConnectionPoolManager : IConnectionPoolManager, IDisposable
         return $"{config.Account}|{config.User}|{config.Database}|{config.Schema}|{config.Warehouse}|{config.Role}";
     }
 
-    private void CleanupCallback(object? state)
-    {
-        if (_disposed)
-            return;
-
-        _poolSemaphore.Wait();
-        try
-        {
-            var now = DateTimeOffset.UtcNow;
-
-            foreach (var poolEntry in _pools.Values)
-            {
-                var connectionsToRemove = new List<IPooledConnection>();
-
-                while (poolEntry.IdleConnections.TryPop(out var connection))
-                {
-                    var idleTime = now - connection.LastUsedAt;
-                    var connectionAge = now - connection.CreatedAt;
-
-                    if (idleTime > poolEntry.Config.PoolConfig.IdleTimeout ||
-                        connectionAge > poolEntry.Config.PoolConfig.MaxConnectionLifetime ||
-                        !connection.IsValid)
-                    {
-                        connectionsToRemove.Add(connection);
-                    }
-                    else
-                    {
-                        poolEntry.IdleConnections.Push(connection);
-                    }
-                }
-
-                foreach (var connection in connectionsToRemove)
-                {
-                    connection.Dispose();
-                    Interlocked.Increment(ref _totalConnectionsClosed);
-                }
-            }
-        }
-        finally
-        {
-            _poolSemaphore.Release();
-        }
-    }
-
     private class ConnectionPoolEntry
     {
         public ConnectionConfig Config { get; }
         public HashSet<IPooledConnection> ActiveConnections { get; }
         public ConcurrentStack<IPooledConnection> IdleConnections { get; }
+        public SemaphoreSlim Semaphore { get; }
+        public SessionCreationTokenCounter TokenCounter { get; }
 
         public ConnectionPoolEntry(ConnectionConfig config)
         {
             Config = config;
             ActiveConnections = new HashSet<IPooledConnection>();
             IdleConnections = new ConcurrentStack<IPooledConnection>();
+            Semaphore = new SemaphoreSlim(1, 1);
+            TokenCounter = new SessionCreationTokenCounter(TimeSpan.FromSeconds(60));
+        }
+
+        public int GetCurrentPoolSize()
+        {
+            return ActiveConnections.Count + IdleConnections.Count + TokenCounter.Count();
         }
     }
 }

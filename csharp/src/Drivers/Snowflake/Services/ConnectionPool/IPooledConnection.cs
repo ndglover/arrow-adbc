@@ -60,7 +60,6 @@ public interface IPooledConnection : IDisposable
     /// <summary>
     /// Validates the connection health.
     /// </summary>
-    /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>True if the connection is healthy, false otherwise.</returns>
-    Task<bool> ValidateAsync(CancellationToken cancellationToken = default);
+    bool Validate();
 }

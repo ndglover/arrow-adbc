@@ -89,7 +89,7 @@ public class PooledConnection : IPooledConnection
     }
 
     /// <inheritdoc/>
-    public async Task<bool> ValidateAsync(CancellationToken cancellationToken = default)
+    public bool Validate()
     {
         if (!IsValid)
             return false;
