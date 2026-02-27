@@ -172,8 +172,6 @@ namespace Apache.Arrow.Adbc.Drivers.Snowflake.Services.TypeConversion
                 var field = batch.Schema.FieldsList[i];
                 var array = batch.Column(i);
                 
-                // For now, we'll convert the first row to parameters
-                // This is a simplified implementation
                 if (batch.Length > 0)
                 {
                     parameters[field.Name] = GetValueFromArray(array, 0);

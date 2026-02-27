@@ -49,8 +49,11 @@ namespace Apache.Arrow.Adbc.Drivers.Snowflake
         /// <param name="connectionPool">The connection pool.</param>
         public SnowflakeConnection(ConnectionConfig config, IConnectionPool connectionPool)
         {
-            _config = config ?? throw new ArgumentNullException(nameof(config));
-            _connectionPool = connectionPool ?? throw new ArgumentNullException(nameof(connectionPool));
+            ArgumentNullException.ThrowIfNull(config);
+            ArgumentNullException.ThrowIfNull(connectionPool);
+
+            _config = config;
+            _connectionPool = connectionPool;
             _options = new Dictionary<string, string>();
             
             // Acquire connection from pool
@@ -88,10 +91,7 @@ namespace Apache.Arrow.Adbc.Drivers.Snowflake
         {
             ThrowIfDisposed();
             
-            if (string.IsNullOrWhiteSpace(key))
-            {
-                throw new ArgumentException("Option key cannot be null or empty.", nameof(key));
-            }
+            ArgumentException.ThrowIfNullOrWhiteSpace(key);
 
             _options[key] = value ?? string.Empty;
         }
@@ -103,9 +103,7 @@ namespace Apache.Arrow.Adbc.Drivers.Snowflake
         public override IArrowArrayStream GetTableTypes()
         {
             ThrowIfDisposed();
-
-            // Snowflake table types: TABLE, VIEW, EXTERNAL TABLE, MATERIALIZED VIEW
-            throw new NotImplementedException("Table types retrieval will be implemented in task 9.1");
+            throw new NotImplementedException("GetTableTypes not yet implemented");
         }
 
         /// <summary>
@@ -119,12 +117,9 @@ namespace Apache.Arrow.Adbc.Drivers.Snowflake
         {
             ThrowIfDisposed();
             
-            if (string.IsNullOrWhiteSpace(tableName))
-            {
-                throw new ArgumentException("Table name cannot be null or empty.", nameof(tableName));
-            }
+            ArgumentException.ThrowIfNullOrWhiteSpace(tableName);
 
-            throw new NotImplementedException("Table schema retrieval will be implemented in task 9.1");
+            throw new NotImplementedException("GetTableSchema not yet implemented");
         }
 
         /// <summary>
@@ -141,8 +136,7 @@ namespace Apache.Arrow.Adbc.Drivers.Snowflake
             string? tableNamePattern, IReadOnlyList<string>? tableTypes, string? columnNamePattern)
         {
             ThrowIfDisposed();
-
-            throw new NotImplementedException("Database objects retrieval will be implemented in task 9.1");
+            throw new NotImplementedException("GetObjects not yet implemented");
         }
 
         /// <summary>
@@ -151,9 +145,7 @@ namespace Apache.Arrow.Adbc.Drivers.Snowflake
         public override void Commit()
         {
             ThrowIfDisposed();
-
-            // Snowflake supports transactions via COMMIT statement
-            throw new NotImplementedException("Transaction support will be implemented in a later task");
+            throw new NotImplementedException("Transaction support not yet implemented");
         }
 
         /// <summary>
@@ -162,9 +154,7 @@ namespace Apache.Arrow.Adbc.Drivers.Snowflake
         public override void Rollback()
         {
             ThrowIfDisposed();
-
-            // Snowflake supports transactions via ROLLBACK statement
-            throw new NotImplementedException("Transaction support will be implemented in a later task");
+            throw new NotImplementedException("Transaction support not yet implemented");
         }
 
         /// <summary>
@@ -187,10 +177,7 @@ namespace Apache.Arrow.Adbc.Drivers.Snowflake
 
         private void ThrowIfDisposed()
         {
-            if (_disposed)
-            {
-                throw new ObjectDisposedException(nameof(SnowflakeConnection));
-            }
+            ObjectDisposedException.ThrowIf(_disposed, this);
         }
     }
 }

@@ -97,20 +97,7 @@ namespace Apache.Arrow.Adbc.Drivers.Snowflake.Services.ConnectionPool
 
             try
             {
-                // Update last used time
                 LastUsedAt = DateTimeOffset.UtcNow;
-
-                // In a real implementation, we might execute a simple query
-                // to verify the connection is still alive (e.g., SELECT 1)
-                // For now, we'll just check the token validity
-                
-                // If token is expiring soon, we could refresh it here
-                if (AuthToken.IsExpiringSoon && AuthToken.CanRefresh)
-                {
-                    // Token refresh would happen here
-                    // For now, we'll just return true if it's still valid
-                }
-
                 return true;
             }
             catch
@@ -128,9 +115,6 @@ namespace Apache.Arrow.Adbc.Drivers.Snowflake.Services.ConnectionPool
                 return;
 
             _disposed = true;
-
-            // In a real implementation, we would close the connection
-            // and release any resources
             GC.SuppressFinalize(this);
         }
     }

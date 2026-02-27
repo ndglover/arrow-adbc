@@ -79,11 +79,9 @@ namespace Apache.Arrow.Adbc.Drivers.Snowflake.Services.Transport
             if (sessionParams.Count > 0)
                 request["parameters"] = sessionParams;
 
-            // Bindings are for query parameters (not session parameters)
             if (parameters != null && parameters.Count > 0)
             {
-                // Convert to binding format if needed
-                // For now, skip bindings as they require a different structure
+                request["bindings"] = parameters;
             }
 
             return request;

@@ -19,40 +19,50 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using Apache.Arrow.Adbc.Drivers.Snowflake.Configuration;
+using Apache.Arrow.Adbc.Drivers.Snowflake.Services.Authentication;
 
 namespace Apache.Arrow.Adbc.Drivers.Snowflake.Services.ConnectionPool
 {
     /// <summary>
-    /// Manages connection pooling for Snowflake connections.
+    /// Represents a pooled connection.
     /// </summary>
-    public interface IConnectionPool : IDisposable
+    public interface IPooledConnection : IDisposable
     {
         /// <summary>
-        /// Acquires a connection from the pool.
+        /// Gets the connection ID.
         /// </summary>
-        /// <param name="config">The connection configuration.</param>
+        string ConnectionId { get; }
+
+        /// <summary>
+        /// Gets the authentication token for this connection.
+        /// </summary>
+        AuthenticationToken AuthToken { get; }
+
+        /// <summary>
+        /// Gets the connection configuration.
+        /// </summary>
+        ConnectionConfig Config { get; }
+
+        /// <summary>
+        /// Gets the time when the connection was created.
+        /// </summary>
+        DateTimeOffset CreatedAt { get; }
+
+        /// <summary>
+        /// Gets the time when the connection was last used.
+        /// </summary>
+        DateTimeOffset LastUsedAt { get; }
+
+        /// <summary>
+        /// Gets a value indicating whether the connection is valid.
+        /// </summary>
+        bool IsValid { get; }
+
+        /// <summary>
+        /// Validates the connection health.
+        /// </summary>
         /// <param name="cancellationToken">The cancellation token.</param>
-        /// <returns>A pooled connection.</returns>
-        Task<IPooledConnection> AcquireConnectionAsync(
-            ConnectionConfig config,
-            CancellationToken cancellationToken = default);
-
-        /// <summary>
-        /// Releases a connection back to the pool.
-        /// </summary>
-        /// <param name="connection">The connection to release.</param>
-        void ReleaseConnection(IPooledConnection connection);
-
-        /// <summary>
-        /// Invalidates a connection and removes it from the pool.
-        /// </summary>
-        /// <param name="connection">The connection to invalidate.</param>
-        void InvalidateConnection(IPooledConnection connection);
-
-        /// <summary>
-        /// Gets statistics about the connection pool.
-        /// </summary>
-        /// <returns>Pool statistics.</returns>
-        Task<PoolStatistics> GetStatisticsAsync();
+        /// <returns>True if the connection is healthy, false otherwise.</returns>
+        Task<bool> ValidateAsync(CancellationToken cancellationToken = default);
     }
 }

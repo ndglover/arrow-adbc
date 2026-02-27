@@ -258,10 +258,7 @@ namespace Apache.Arrow.Adbc.Drivers.Snowflake
 
         private void ThrowIfDisposed()
         {
-            if (_disposed)
-            {
-                throw new ObjectDisposedException(nameof(SnowflakeStatement));
-            }
+            ObjectDisposedException.ThrowIf(_disposed, this);
         }
     }
 }

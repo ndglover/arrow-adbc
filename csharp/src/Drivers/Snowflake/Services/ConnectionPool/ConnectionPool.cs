@@ -69,10 +69,9 @@ namespace Apache.Arrow.Adbc.Drivers.Snowflake.Services.ConnectionPool
             await _poolSemaphore.WaitAsync(cancellationToken);
             try
             {
-                // Try to get an idle connection
-                while (poolEntry.IdleConnections.TryDequeue(out var connection))
+                // LIFO: Reuse most recently returned connection to keep hot set small
+                while (poolEntry.IdleConnections.TryPop(out var connection))
                 {
-                    // Validate the connection
                     if (await connection.ValidateAsync(cancellationToken))
                     {
                         poolEntry.ActiveConnections.Add(connection);
@@ -80,23 +79,19 @@ namespace Apache.Arrow.Adbc.Drivers.Snowflake.Services.ConnectionPool
                         return connection;
                     }
 
-                    // Connection is invalid, dispose it
                     connection.Dispose();
                     Interlocked.Increment(ref _totalConnectionsClosed);
                 }
 
-                // Check if we can create a new connection
                 var totalConnections = poolEntry.ActiveConnections.Count + poolEntry.IdleConnections.Count;
                 if (totalConnections >= config.PoolConfig.MaxPoolSize)
                 {
-                    // Wait for a connection to become available
                     Interlocked.Increment(ref _waitingRequests);
                     throw new InvalidOperationException(
                         $"Connection pool limit reached ({config.PoolConfig.MaxPoolSize}). " +
                         "No connections available.");
                 }
 
-                // Create a new connection
                 var newConnection = await CreateConnectionAsync(config, cancellationToken);
                 poolEntry.ActiveConnections.Add(newConnection);
                 Interlocked.Increment(ref _totalConnectionsCreated);
@@ -124,12 +119,11 @@ namespace Apache.Arrow.Adbc.Drivers.Snowflake.Services.ConnectionPool
             {
                 poolEntry.ActiveConnections.Remove(connection);
 
-                // Check if connection is still valid and within lifetime
                 var connectionAge = DateTimeOffset.UtcNow - connection.CreatedAt;
                 if (connection.IsValid && 
                     connectionAge < connection.Config.PoolConfig.MaxConnectionLifetime)
                 {
-                    poolEntry.IdleConnections.Enqueue(connection);
+                    poolEntry.IdleConnections.Push(connection);
                 }
                 else
                 {
@@ -212,7 +206,7 @@ namespace Apache.Arrow.Adbc.Drivers.Snowflake.Services.ConnectionPool
                         connection.Dispose();
                     }
 
-                    while (poolEntry.IdleConnections.TryDequeue(out var connection))
+                    while (poolEntry.IdleConnections.TryPop(out var connection))
                     {
                         connection.Dispose();
                     }
@@ -231,7 +225,6 @@ namespace Apache.Arrow.Adbc.Drivers.Snowflake.Services.ConnectionPool
             ConnectionConfig config,
             CancellationToken cancellationToken)
         {
-            // Authenticate and get token
             var authToken = await _authService.AuthenticateAsync(
                 config.Account,
                 config.User,
@@ -264,8 +257,7 @@ namespace Apache.Arrow.Adbc.Drivers.Snowflake.Services.ConnectionPool
                 {
                     var connectionsToRemove = new List<IPooledConnection>();
 
-                    // Check idle connections
-                    while (poolEntry.IdleConnections.TryDequeue(out var connection))
+                    while (poolEntry.IdleConnections.TryPop(out var connection))
                     {
                         var idleTime = now - connection.LastUsedAt;
                         var connectionAge = now - connection.CreatedAt;
@@ -278,12 +270,10 @@ namespace Apache.Arrow.Adbc.Drivers.Snowflake.Services.ConnectionPool
                         }
                         else
                         {
-                            // Put it back if still valid
-                            poolEntry.IdleConnections.Enqueue(connection);
+                            poolEntry.IdleConnections.Push(connection);
                         }
                     }
 
-                    // Dispose removed connections
                     foreach (var connection in connectionsToRemove)
                     {
                         connection.Dispose();
@@ -301,13 +291,13 @@ namespace Apache.Arrow.Adbc.Drivers.Snowflake.Services.ConnectionPool
         {
             public ConnectionConfig Config { get; }
             public HashSet<IPooledConnection> ActiveConnections { get; }
-            public ConcurrentQueue<IPooledConnection> IdleConnections { get; }
+            public ConcurrentStack<IPooledConnection> IdleConnections { get; }
 
             public ConnectionPoolEntry(ConnectionConfig config)
             {
                 Config = config;
                 ActiveConnections = new HashSet<IPooledConnection>();
-                IdleConnections = new ConcurrentQueue<IPooledConnection>();
+                IdleConnections = new ConcurrentStack<IPooledConnection>();
             }
         }
     }

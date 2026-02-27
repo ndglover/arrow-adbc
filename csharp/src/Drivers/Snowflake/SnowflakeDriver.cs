@@ -35,27 +35,8 @@ namespace Apache.Arrow.Adbc.Drivers.Snowflake
         /// <exception cref="ArgumentException">Thrown when the parameters are invalid.</exception>
         public override AdbcDatabase Open(IReadOnlyDictionary<string, string> parameters)
         {
-            if (parameters == null)
-            {
-                throw new ArgumentNullException(nameof(parameters));
-            }
-
-            try
-            {
-                // Convert parameters dictionary to connection string format for parsing
-                var connectionString = string.Join(";", parameters.Select(kvp => $"{kvp.Key}={kvp.Value}"));
-                var config = ConnectionStringParser.Parse(connectionString);
-                return new SnowflakeDatabase(config);
-            }
-            catch (ArgumentException ex)
-            {
-                // Re-throw ArgumentExceptions from ConnectionStringParser with consistent message format
-                throw new ArgumentException($"Failed to parse connection parameters: {ex.Message}", nameof(parameters), ex);
-            }
-            catch (Exception ex)
-            {
-                throw new ArgumentException($"Failed to parse connection parameters: {ex.Message}", nameof(parameters), ex);
-            }
+            ArgumentNullException.ThrowIfNull(parameters);
+            return new SnowflakeDatabase(parameters);
         }
     }
 }

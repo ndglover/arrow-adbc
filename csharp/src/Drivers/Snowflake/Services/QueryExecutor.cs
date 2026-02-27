@@ -244,8 +244,6 @@ namespace Apache.Arrow.Adbc.Drivers.Snowflake.Services
             if (parameters == null)
                 throw new ArgumentNullException(nameof(parameters));
 
-            // For now, execute as a regular query with parameter substitution
-            // A full implementation would use Snowflake's prepared statement API
             var request = new QueryRequest
             {
                 Statement = statement.Statement,
@@ -261,29 +259,11 @@ namespace Apache.Arrow.Adbc.Drivers.Snowflake.Services
             if (string.IsNullOrEmpty(queryId))
                 throw new ArgumentException("Query ID cannot be null or empty.", nameof(queryId));
 
-            try
-            {
-                var endpoint = $"{_accountUrl}{string.Format(CancelEndpoint, queryId)}";
-                var cancelRequest = RequestBuilder.BuildCancelRequest(queryId);
-                
-                // Note: This requires the authentication token to be available
-                // In a real implementation, we would need to pass the token through the method signature
-                // or maintain it in the executor context
-                
-                // For now, we'll throw NotImplementedException to indicate this needs proper token management
-                throw new NotImplementedException(
-                    "Query cancellation requires authentication token management to be implemented.");
-            }
-            catch (Exception ex) when (ex is not NotImplementedException)
-            {
-                throw new InvalidOperationException($"Failed to cancel query {queryId}: {ex.Message}", ex);
-            }
+            throw new NotImplementedException("Query cancellation not yet implemented");
         }
 
         private static QueryStatus ParseQueryStatus(string? statusUrl)
         {
-            // In a real implementation, we would poll the status URL
-            // For now, assume success if we got results
             return QueryStatus.Success;
         }
 

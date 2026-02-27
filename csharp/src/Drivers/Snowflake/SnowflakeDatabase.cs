@@ -17,6 +17,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Net.Http;
 using Apache.Arrow.Adbc.Drivers.Snowflake.Configuration;
 using Apache.Arrow.Adbc.Drivers.Snowflake.Services.Authentication;
@@ -29,25 +30,27 @@ namespace Apache.Arrow.Adbc.Drivers.Snowflake
     /// </summary>
     public sealed class SnowflakeDatabase : AdbcDatabase
     {
-        private readonly ConnectionConfig _config;
+        private readonly IReadOnlyDictionary<string, string> _parameters;
         private readonly IConnectionPool _connectionPool;
         private bool _disposed;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="SnowflakeDatabase"/> class.
         /// </summary>
-        /// <param name="config">The connection configuration.</param>
-        public SnowflakeDatabase(ConnectionConfig config)
+        /// <param name="parameters">The ADBC connection parameters.</param>
+        public SnowflakeDatabase(IReadOnlyDictionary<string, string> parameters)
         {
-            _config = config ?? throw new ArgumentNullException(nameof(config));
-            
+            ArgumentNullException.ThrowIfNull(parameters);
+
+            _parameters = parameters;
+
             // Initialize services
             var httpClient = new HttpClient();
             var basicAuth = new BasicAuthenticator(httpClient);
             var keyPairAuth = new KeyPairAuthenticator(httpClient);
             var oauthAuth = new OAuthAuthenticator(httpClient);
             var ssoAuth = new SsoAuthenticator(httpClient);
-            
+
             var authService = new AuthenticationService(basicAuth, keyPairAuth, oauthAuth, ssoAuth);
             _connectionPool = new ConnectionPool(authService);
         }
@@ -55,12 +58,15 @@ namespace Apache.Arrow.Adbc.Drivers.Snowflake
         /// <summary>
         /// Creates a new connection to the Snowflake database.
         /// </summary>
-        /// <param name="parameters">Connection-specific parameters.</param>
+        /// <param name="parameters">Connection-specific parameters that override database parameters.</param>
         /// <returns>An AdbcConnection instance.</returns>
         public override AdbcConnection Connect(IReadOnlyDictionary<string, string>? parameters)
         {
-            ThrowIfDisposed();
-            return new SnowflakeConnection(_config, _connectionPool);
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            
+            var mergedParameters = MergeConnectionParametersWithDatabaseDefaults(parameters);
+            var config = ConnectionStringParser.ParseParameters(mergedParameters);
+            return new SnowflakeConnection(config, _connectionPool);
         }
 
         /// <summary>
@@ -76,12 +82,22 @@ namespace Apache.Arrow.Adbc.Drivers.Snowflake
             base.Dispose();
         }
 
-        private void ThrowIfDisposed()
+        private IReadOnlyDictionary<string, string> MergeConnectionParametersWithDatabaseDefaults(IReadOnlyDictionary<string, string>? connectionParameters)
         {
-            if (_disposed)
+            if (connectionParameters == null)
+                return _parameters;
+
+            var merged = new Dictionary<string, string>(connectionParameters, StringComparer.OrdinalIgnoreCase);
+            
+            foreach (var kvp in _parameters)
             {
-                throw new ObjectDisposedException(nameof(SnowflakeDatabase));
+                if (!merged.ContainsKey(kvp.Key))
+                {
+                    merged[kvp.Key] = kvp.Value;
+                }
             }
+            
+            return merged;
         }
     }
 }
