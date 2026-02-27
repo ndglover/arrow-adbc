@@ -16,7 +16,6 @@
  */
 
 using System;
-using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 
 namespace Apache.Arrow.Adbc.Drivers.Snowflake.Configuration;

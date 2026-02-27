@@ -15,7 +15,6 @@
  * limitations under the License.
  */
 
-using Apache.Arrow;
 using Apache.Arrow.Types;
 
 namespace Apache.Arrow.Adbc.Drivers.Snowflake.Services.TypeConversion;

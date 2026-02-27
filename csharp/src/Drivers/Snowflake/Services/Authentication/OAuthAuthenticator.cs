@@ -21,7 +21,6 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
-using Apache.Arrow.Adbc.Drivers.Snowflake.Configuration;
 
 namespace Apache.Arrow.Adbc.Drivers.Snowflake.Services.Authentication;
 

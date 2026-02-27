@@ -18,8 +18,6 @@
 using System;
 using System.Collections.Generic;
 using System.Net.Http;
-using System.Threading.Tasks;
-using Apache.Arrow;
 using Apache.Arrow.Ipc;
 using Apache.Arrow.Adbc.Drivers.Snowflake.Configuration;
 using Apache.Arrow.Adbc.Drivers.Snowflake.Services;
@@ -35,7 +33,7 @@ namespace Apache.Arrow.Adbc.Drivers.Snowflake;
 public sealed class SnowflakeConnection : AdbcConnection
 {
     private readonly ConnectionConfig _config;
-    private readonly IConnectionPool _connectionPool;
+    private readonly IConnectionPoolManager _connectionPool;
     private readonly Dictionary<string, string> _options;
     private IPooledConnection? _pooledConnection;
     private IQueryExecutor? _queryExecutor;
@@ -47,7 +45,7 @@ public sealed class SnowflakeConnection : AdbcConnection
     /// </summary>
     /// <param name="config">The connection configuration.</param>
     /// <param name="connectionPool">The connection pool.</param>
-    public SnowflakeConnection(ConnectionConfig config, IConnectionPool connectionPool)
+    public SnowflakeConnection(ConnectionConfig config, IConnectionPoolManager connectionPool)
     {
         ArgumentNullException.ThrowIfNull(config);
         ArgumentNullException.ThrowIfNull(connectionPool);

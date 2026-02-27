@@ -18,7 +18,6 @@
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
-using Apache.Arrow.Adbc.Drivers.Snowflake.Services.Authentication;
 
 namespace Apache.Arrow.Adbc.Drivers.Snowflake.Services.Transport;
 

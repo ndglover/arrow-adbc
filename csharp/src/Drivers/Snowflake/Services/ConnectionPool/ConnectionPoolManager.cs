@@ -22,14 +22,13 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Apache.Arrow.Adbc.Drivers.Snowflake.Configuration;
-using Apache.Arrow.Adbc.Drivers.Snowflake.Services.Authentication;
 
 namespace Apache.Arrow.Adbc.Drivers.Snowflake.Services.ConnectionPool;
 
 /// <summary>
 /// Implements connection pooling for Snowflake connections.
 /// </summary>
-public class ConnectionPool : IConnectionPool, IDisposable
+public class ConnectionPoolManager : IConnectionPoolManager, IDisposable
 {
     private readonly IAuthenticationService _authService;
     private readonly ConcurrentDictionary<string, ConnectionPoolEntry> _pools;
@@ -42,10 +41,10 @@ public class ConnectionPool : IConnectionPool, IDisposable
     private bool _disposed;
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="ConnectionPool"/> class.
+    /// Initializes a new instance of the <see cref="ConnectionPoolManager"/> class.
     /// </summary>
     /// <param name="authService">The authentication service.</param>
-    public ConnectionPool(IAuthenticationService authService)
+    public ConnectionPoolManager(IAuthenticationService authService)
     {
         _authService = authService ?? throw new ArgumentNullException(nameof(authService));
         _pools = new ConcurrentDictionary<string, ConnectionPoolEntry>();

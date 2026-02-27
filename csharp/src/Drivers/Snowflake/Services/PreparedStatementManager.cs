@@ -21,8 +21,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using Apache.Arrow;
-using Apache.Arrow.Adbc.Drivers.Snowflake.Services.Authentication;
 using Apache.Arrow.Adbc.Drivers.Snowflake.Services.Transport;
 using Apache.Arrow.Adbc.Drivers.Snowflake.Services.TypeConversion;
 

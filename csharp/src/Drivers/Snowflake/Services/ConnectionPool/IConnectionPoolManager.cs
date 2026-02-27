@@ -25,7 +25,7 @@ namespace Apache.Arrow.Adbc.Drivers.Snowflake.Services.ConnectionPool;
 /// <summary>
 /// Manages connection pooling for Snowflake connections.
 /// </summary>
-public interface IConnectionPool : IDisposable
+public interface IConnectionPoolManager : IDisposable
 {
     /// <summary>
     /// Acquires a connection from the pool.

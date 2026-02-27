@@ -17,7 +17,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Net.Http;
 using Apache.Arrow.Adbc.Drivers.Snowflake.Configuration;
 using Apache.Arrow.Adbc.Drivers.Snowflake.Services.Authentication;
@@ -31,7 +30,7 @@ namespace Apache.Arrow.Adbc.Drivers.Snowflake;
 public sealed class SnowflakeDatabase : AdbcDatabase
 {
     private readonly IReadOnlyDictionary<string, string>? _parameters;
-    private readonly IConnectionPool _connectionPool;
+    private readonly IConnectionPoolManager _connectionPool;
     private bool _disposed;
 
     /// <summary>
@@ -50,7 +49,7 @@ public sealed class SnowflakeDatabase : AdbcDatabase
         var ssoAuth = new SsoAuthenticator(httpClient);
 
         var authService = new AuthenticationService(basicAuth, keyPairAuth, oauthAuth, ssoAuth);
-        _connectionPool = new ConnectionPool(authService);
+        _connectionPool = new ConnectionPoolManager(authService);
     }
 
     /// <summary>

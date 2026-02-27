@@ -17,7 +17,6 @@
 
 using System;
 using System.Threading.Tasks;
-using Apache.Arrow;
 using Apache.Arrow.Adbc.Drivers.Snowflake.Configuration;
 using Apache.Arrow.Adbc.Drivers.Snowflake.Services;
 using Apache.Arrow.Adbc.Drivers.Snowflake.Services.ConnectionPool;

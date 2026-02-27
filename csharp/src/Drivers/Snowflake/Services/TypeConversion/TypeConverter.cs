@@ -18,7 +18,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using Apache.Arrow;
 using Apache.Arrow.Types;
 
 namespace Apache.Arrow.Adbc.Drivers.Snowflake.Services.TypeConversion;
