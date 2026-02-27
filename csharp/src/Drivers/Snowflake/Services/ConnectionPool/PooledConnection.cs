@@ -56,19 +56,20 @@ public class PooledConnection : IPooledConnection
 
     public DateTimeOffset CreatedAt { get; }
 
-    public DateTimeOffset LastUsedAt
-    {
-        get => _lastUsedAt;
-        set => _lastUsedAt = value;
-    }
+    public DateTimeOffset LastUsedAt => _lastUsedAt;
 
-    public bool IsDisposed { get; internal set; }
+    public bool IsDisposed => _disposed;
 
     public bool IsTokenExpired => AuthToken.IsExpired;
 
     public bool IsFaulted { get; private set; }
 
     public void MarkFaulted() => IsFaulted = true;
+
+    /// <summary>
+    /// Updates the last used timestamp (internal use only).
+    /// </summary>
+    void IPooledConnection.UpdateLastUsedAt() => _lastUsedAt = DateTimeOffset.UtcNow;
 
     /// <summary>
     /// Disposes the connection.

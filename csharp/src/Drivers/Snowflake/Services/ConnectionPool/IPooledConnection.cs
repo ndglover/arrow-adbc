@@ -48,9 +48,14 @@ public interface IPooledConnection : IDisposable
     DateTimeOffset CreatedAt { get; }
 
     /// <summary>
-    /// Gets the time when the connection was last used.
+    /// Gets or sets the time when the connection was last used.
     /// </summary>
-    DateTimeOffset LastUsedAt { get; internal set; }
+    DateTimeOffset LastUsedAt { get; }
+
+    /// <summary>
+    /// Updates the last used timestamp (internal use only).
+    /// </summary>
+    internal void UpdateLastUsedAt();
 
     /// <summary>
     /// Gets a value indicating whether the connection is disposed.

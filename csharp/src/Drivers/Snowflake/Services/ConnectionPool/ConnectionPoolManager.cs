@@ -110,7 +110,7 @@ public class ConnectionPoolManager : IConnectionPoolManager, IDisposable
             {
                 if (IsConnectionValid(connection))
                 {
-                    connection.LastUsedAt = DateTimeOffset.UtcNow;
+                    connection.UpdateLastUsedAt();
                     poolEntry.ActiveConnections.TryAdd(connection.ConnectionId, connection);
                     Interlocked.Increment(ref _totalConnectionReuses);
                     idleConnection = connection;
@@ -282,32 +282,33 @@ public class ConnectionPoolManager : IConnectionPoolManager, IDisposable
         return $"{config.Account}|{config.User}|{config.Database}|{config.Schema}|{config.Warehouse}|{config.Role}";
     }
 
-    public Task<PoolStatistics> GetStatisticsAsync() => throw new NotImplementedException();
+    public Task<PoolStatistics> GetStatisticsAsync()
+    {
+        var totalConnections = 0;
+        var activeConnections = 0;
+        var idleConnections = 0;
+        var pendingRequests = 0L;
 
-    internal class ConnectionPoolEntry(ConnectionConfig config)
-{
-        public ConnectionConfig Config { get; } = config;
-        public ConcurrentDictionary<string, IPooledConnection> ActiveConnections { get; } = new();
-        public ConcurrentStack<IPooledConnection> IdleConnections { get; } = new();
-        public SemaphoreSlim CapacitySemaphore { get; } = new(
-            config.PoolConfig.MaxPoolSize,
-            config.PoolConfig.MaxPoolSize);
-
-        public readonly object IdleLock = new();
-        private int _pendingRequests;
-
-        public int PendingRequests => _pendingRequests;
-
-        public void IncrementPendingRequests() => Interlocked.Increment(ref _pendingRequests);
-        public void DecrementPendingRequests() => Interlocked.Decrement(ref _pendingRequests);
-
-        public IEnumerable<IPooledConnection> GetAllConnections()
+        foreach (var poolEntry in _pools.Values)
         {
-            foreach (var connection in ActiveConnections.Values)
-                yield return connection;
-            foreach (var connection in IdleConnections.ToArray())
-                yield return connection;
-        }
-    }
+            var poolSize = poolEntry.Config.PoolConfig.MaxPoolSize - poolEntry.CapacitySemaphore.CurrentCount;
+            var idle = poolEntry.IdleConnections.Count;
 
+            totalConnections += poolSize;
+            idleConnections += idle;
+            activeConnections += poolSize - idle;
+            pendingRequests += poolEntry.PendingRequests;
+        }
+
+        return Task.FromResult(new PoolStatistics
+        {
+            TotalConnections = totalConnections,
+            ActiveConnections = activeConnections,
+            IdleConnections = idleConnections,
+            TotalConnectionsCreated = _totalConnectionsCreated,
+            TotalConnectionsClosed = _totalConnectionsClosed,
+            TotalConnectionReuses = _totalConnectionReuses,
+            PendingRequests = pendingRequests
+        });
+    }
 }
