@@ -15,141 +15,140 @@
  * limitations under the License.
  */
 
-namespace Apache.Arrow.Adbc.Drivers.Snowflake.Services.TypeConversion
+namespace Apache.Arrow.Adbc.Drivers.Snowflake.Services.TypeConversion;
+
+/// <summary>
+/// Represents a Snowflake data type with metadata.
+/// </summary>
+public class SnowflakeDataType
 {
     /// <summary>
-    /// Represents a Snowflake data type with metadata.
+    /// Gets or sets the type name.
     /// </summary>
-    public class SnowflakeDataType
+    public string TypeName { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Gets or sets the precision (for numeric types).
+    /// </summary>
+    public int? Precision { get; set; }
+
+    /// <summary>
+    /// Gets or sets the scale (for numeric types).
+    /// </summary>
+    public int? Scale { get; set; }
+
+    /// <summary>
+    /// Gets or sets the length (for string/binary types).
+    /// </summary>
+    public int? Length { get; set; }
+
+    /// <summary>
+    /// Gets or sets whether the type is nullable.
+    /// </summary>
+    public bool IsNullable { get; set; } = true;
+
+    /// <summary>
+    /// Gets or sets the timezone (for timestamp types).
+    /// </summary>
+    public string? Timezone { get; set; }
+
+    /// <summary>
+    /// Gets the Snowflake type code.
+    /// </summary>
+    public SnowflakeTypeCode TypeCode => ParseTypeCode(TypeName);
+
+    private static SnowflakeTypeCode ParseTypeCode(string typeName)
     {
-        /// <summary>
-        /// Gets or sets the type name.
-        /// </summary>
-        public string TypeName { get; set; } = string.Empty;
-
-        /// <summary>
-        /// Gets or sets the precision (for numeric types).
-        /// </summary>
-        public int? Precision { get; set; }
-
-        /// <summary>
-        /// Gets or sets the scale (for numeric types).
-        /// </summary>
-        public int? Scale { get; set; }
-
-        /// <summary>
-        /// Gets or sets the length (for string/binary types).
-        /// </summary>
-        public int? Length { get; set; }
-
-        /// <summary>
-        /// Gets or sets whether the type is nullable.
-        /// </summary>
-        public bool IsNullable { get; set; } = true;
-
-        /// <summary>
-        /// Gets or sets the timezone (for timestamp types).
-        /// </summary>
-        public string? Timezone { get; set; }
-
-        /// <summary>
-        /// Gets the Snowflake type code.
-        /// </summary>
-        public SnowflakeTypeCode TypeCode => ParseTypeCode(TypeName);
-
-        private static SnowflakeTypeCode ParseTypeCode(string typeName)
+        return typeName.ToUpperInvariant() switch
         {
-            return typeName.ToUpperInvariant() switch
-            {
-                "FIXED" or "NUMBER" or "DECIMAL" or "NUMERIC" => SnowflakeTypeCode.Number,
-                "INTEGER" or "INT" or "BIGINT" or "SMALLINT" or "TINYINT" or "BYTEINT" => SnowflakeTypeCode.Integer,
-                "FLOAT" or "FLOAT4" or "FLOAT8" => SnowflakeTypeCode.Float,
-                "DOUBLE" or "DOUBLE PRECISION" or "REAL" => SnowflakeTypeCode.Double,
-                "VARCHAR" or "STRING" or "TEXT" or "CHAR" or "CHARACTER" => SnowflakeTypeCode.Varchar,
-                "BINARY" or "VARBINARY" => SnowflakeTypeCode.Binary,
-                "BOOLEAN" => SnowflakeTypeCode.Boolean,
-                "DATE" => SnowflakeTypeCode.Date,
-                "TIME" => SnowflakeTypeCode.Time,
-                "TIMESTAMP" or "DATETIME" => SnowflakeTypeCode.Timestamp,
-                "TIMESTAMP_LTZ" => SnowflakeTypeCode.TimestampLtz,
-                "TIMESTAMP_NTZ" => SnowflakeTypeCode.TimestampNtz,
-                "TIMESTAMP_TZ" => SnowflakeTypeCode.TimestampTz,
-                "VARIANT" => SnowflakeTypeCode.Variant,
-                "OBJECT" => SnowflakeTypeCode.Object,
-                "ARRAY" => SnowflakeTypeCode.Array,
-                "GEOGRAPHY" => SnowflakeTypeCode.Geography,
-                "GEOMETRY" => SnowflakeTypeCode.Geometry,
-                _ => SnowflakeTypeCode.Unknown
-            };
-        }
+            "FIXED" or "NUMBER" or "DECIMAL" or "NUMERIC" => SnowflakeTypeCode.Number,
+            "INTEGER" or "INT" or "BIGINT" or "SMALLINT" or "TINYINT" or "BYTEINT" => SnowflakeTypeCode.Integer,
+            "FLOAT" or "FLOAT4" or "FLOAT8" => SnowflakeTypeCode.Float,
+            "DOUBLE" or "DOUBLE PRECISION" or "REAL" => SnowflakeTypeCode.Double,
+            "VARCHAR" or "STRING" or "TEXT" or "CHAR" or "CHARACTER" => SnowflakeTypeCode.Varchar,
+            "BINARY" or "VARBINARY" => SnowflakeTypeCode.Binary,
+            "BOOLEAN" => SnowflakeTypeCode.Boolean,
+            "DATE" => SnowflakeTypeCode.Date,
+            "TIME" => SnowflakeTypeCode.Time,
+            "TIMESTAMP" or "DATETIME" => SnowflakeTypeCode.Timestamp,
+            "TIMESTAMP_LTZ" => SnowflakeTypeCode.TimestampLtz,
+            "TIMESTAMP_NTZ" => SnowflakeTypeCode.TimestampNtz,
+            "TIMESTAMP_TZ" => SnowflakeTypeCode.TimestampTz,
+            "VARIANT" => SnowflakeTypeCode.Variant,
+            "OBJECT" => SnowflakeTypeCode.Object,
+            "ARRAY" => SnowflakeTypeCode.Array,
+            "GEOGRAPHY" => SnowflakeTypeCode.Geography,
+            "GEOMETRY" => SnowflakeTypeCode.Geometry,
+            _ => SnowflakeTypeCode.Unknown
+        };
     }
+}
+
+/// <summary>
+/// Snowflake type codes.
+/// </summary>
+public enum SnowflakeTypeCode
+{
+    Unknown,
+    Number,
+    Integer,
+    Float,
+    Double,
+    Varchar,
+    Binary,
+    Boolean,
+    Date,
+    Time,
+    Timestamp,
+    TimestampLtz,
+    TimestampNtz,
+    TimestampTz,
+    Variant,
+    Object,
+    Array,
+    Geography,
+    Geometry
+}
+
+/// <summary>
+/// Represents a Snowflake result set.
+/// </summary>
+public class SnowflakeResultSet
+{
+    /// <summary>
+    /// Gets or sets the column metadata.
+    /// </summary>
+    public SnowflakeColumnMetadata[] Columns { get; set; } = System.Array.Empty<SnowflakeColumnMetadata>();
 
     /// <summary>
-    /// Snowflake type codes.
+    /// Gets or sets the row data.
     /// </summary>
-    public enum SnowflakeTypeCode
-    {
-        Unknown,
-        Number,
-        Integer,
-        Float,
-        Double,
-        Varchar,
-        Binary,
-        Boolean,
-        Date,
-        Time,
-        Timestamp,
-        TimestampLtz,
-        TimestampNtz,
-        TimestampTz,
-        Variant,
-        Object,
-        Array,
-        Geography,
-        Geometry
-    }
+    public object?[][] Rows { get; set; } = System.Array.Empty<object?[]>();
+}
+
+/// <summary>
+/// Represents Snowflake column metadata.
+/// </summary>
+public class SnowflakeColumnMetadata
+{
+    /// <summary>
+    /// Gets or sets the column name.
+    /// </summary>
+    public string Name { get; set; } = string.Empty;
 
     /// <summary>
-    /// Represents a Snowflake result set.
+    /// Gets or sets the data type.
     /// </summary>
-    public class SnowflakeResultSet
-    {
-        /// <summary>
-        /// Gets or sets the column metadata.
-        /// </summary>
-        public SnowflakeColumnMetadata[] Columns { get; set; } = System.Array.Empty<SnowflakeColumnMetadata>();
+    public SnowflakeDataType DataType { get; set; } = new();
+}
 
-        /// <summary>
-        /// Gets or sets the row data.
-        /// </summary>
-        public object?[][] Rows { get; set; } = System.Array.Empty<object?[]>();
-    }
-
+/// <summary>
+/// Represents a parameter set for Snowflake query execution.
+/// </summary>
+public class ParameterSet
+{
     /// <summary>
-    /// Represents Snowflake column metadata.
+    /// Gets or sets the parameters.
     /// </summary>
-    public class SnowflakeColumnMetadata
-    {
-        /// <summary>
-        /// Gets or sets the column name.
-        /// </summary>
-        public string Name { get; set; } = string.Empty;
-
-        /// <summary>
-        /// Gets or sets the data type.
-        /// </summary>
-        public SnowflakeDataType DataType { get; set; } = new();
-    }
-
-    /// <summary>
-    /// Represents a parameter set for Snowflake query execution.
-    /// </summary>
-    public class ParameterSet
-    {
-        /// <summary>
-        /// Gets or sets the parameters.
-        /// </summary>
-        public System.Collections.Generic.Dictionary<string, object?> Parameters { get; set; } = new();
-    }
+    public System.Collections.Generic.Dictionary<string, object?> Parameters { get; set; } = new();
 }

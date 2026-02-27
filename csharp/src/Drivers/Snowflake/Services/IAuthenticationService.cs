@@ -20,92 +20,91 @@ using System.Threading;
 using System.Threading.Tasks;
 using Apache.Arrow.Adbc.Drivers.Snowflake.Configuration;
 
-namespace Apache.Arrow.Adbc.Drivers.Snowflake.Services
+namespace Apache.Arrow.Adbc.Drivers.Snowflake.Services;
+
+/// <summary>
+/// Provides authentication services for Snowflake connections.
+/// </summary>
+public interface IAuthenticationService
 {
     /// <summary>
-    /// Provides authentication services for Snowflake connections.
+    /// Authenticates using the provided configuration and returns an authentication token.
     /// </summary>
-    public interface IAuthenticationService
-    {
-        /// <summary>
-        /// Authenticates using the provided configuration and returns an authentication token.
-        /// </summary>
-        /// <param name="account">The Snowflake account identifier.</param>
-        /// <param name="user">The username.</param>
-        /// <param name="authConfig">The authentication configuration.</param>
-        /// <param name="connectionConfig">The connection configuration containing warehouse, database, schema, and role settings.</param>
-        /// <param name="cancellationToken">The cancellation token.</param>
-        /// <returns>An authentication token.</returns>
-        Task<AuthenticationToken> AuthenticateAsync(string account, string user, AuthenticationConfig authConfig, ConnectionConfig? connectionConfig = null, CancellationToken cancellationToken = default);
-
-        /// <summary>
-        /// Refreshes an existing authentication token.
-        /// </summary>
-        /// <param name="token">The token to refresh.</param>
-        /// <param name="cancellationToken">The cancellation token.</param>
-        /// <returns>A refreshed authentication token.</returns>
-        Task<AuthenticationToken> RefreshTokenAsync(AuthenticationToken token, CancellationToken cancellationToken = default);
-
-        /// <summary>
-        /// Invalidates an authentication token.
-        /// </summary>
-        /// <param name="token">The token to invalidate.</param>
-        void InvalidateToken(AuthenticationToken token);
-    }
+    /// <param name="account">The Snowflake account identifier.</param>
+    /// <param name="user">The username.</param>
+    /// <param name="authConfig">The authentication configuration.</param>
+    /// <param name="connectionConfig">The connection configuration containing warehouse, database, schema, and role settings.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>An authentication token.</returns>
+    Task<AuthenticationToken> AuthenticateAsync(string account, string user, AuthenticationConfig authConfig, ConnectionConfig? connectionConfig = null, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Represents an authentication token for Snowflake connections.
+    /// Refreshes an existing authentication token.
     /// </summary>
-    public class AuthenticationToken
-    {
-        /// <summary>
-        /// Gets or sets the JWT access token.
-        /// </summary>
-        public string AccessToken { get; set; } = string.Empty;
+    /// <param name="token">The token to refresh.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>A refreshed authentication token.</returns>
+    Task<AuthenticationToken> RefreshTokenAsync(AuthenticationToken token, CancellationToken cancellationToken = default);
 
-        /// <summary>
-        /// Gets or sets the refresh token (if available).
-        /// </summary>
-        public string? RefreshToken { get; set; }
+    /// <summary>
+    /// Invalidates an authentication token.
+    /// </summary>
+    /// <param name="token">The token to invalidate.</param>
+    void InvalidateToken(AuthenticationToken token);
+}
 
-        /// <summary>
-        /// Gets or sets the token expiration time.
-        /// </summary>
-        public DateTimeOffset ExpiresAt { get; set; }
+/// <summary>
+/// Represents an authentication token for Snowflake connections.
+/// </summary>
+public class AuthenticationToken
+{
+    /// <summary>
+    /// Gets or sets the JWT access token.
+    /// </summary>
+    public string AccessToken { get; set; } = string.Empty;
 
-        /// <summary>
-        /// Gets or sets the token type (typically "Bearer").
-        /// </summary>
-        public string TokenType { get; set; } = "Bearer";
+    /// <summary>
+    /// Gets or sets the refresh token (if available).
+    /// </summary>
+    public string? RefreshToken { get; set; }
 
-        /// <summary>
-        /// Gets or sets the session token (if available).
-        /// </summary>
-        public string? SessionToken { get; set; }
+    /// <summary>
+    /// Gets or sets the token expiration time.
+    /// </summary>
+    public DateTimeOffset ExpiresAt { get; set; }
 
-        /// <summary>
-        /// Gets or sets the master token (if available).
-        /// </summary>
-        public string? MasterToken { get; set; }
+    /// <summary>
+    /// Gets or sets the token type (typically "Bearer").
+    /// </summary>
+    public string TokenType { get; set; } = "Bearer";
 
-        /// <summary>
-        /// Gets or sets the session ID.
-        /// </summary>
-        public string? SessionId { get; set; }
+    /// <summary>
+    /// Gets or sets the session token (if available).
+    /// </summary>
+    public string? SessionToken { get; set; }
 
-        /// <summary>
-        /// Gets a value indicating whether the token is expired.
-        /// </summary>
-        public bool IsExpired => DateTimeOffset.UtcNow >= ExpiresAt;
+    /// <summary>
+    /// Gets or sets the master token (if available).
+    /// </summary>
+    public string? MasterToken { get; set; }
 
-        /// <summary>
-        /// Gets a value indicating whether the token will expire soon (within 5 minutes).
-        /// </summary>
-        public bool IsExpiringSoon => DateTimeOffset.UtcNow.AddMinutes(5) >= ExpiresAt;
+    /// <summary>
+    /// Gets or sets the session ID.
+    /// </summary>
+    public string? SessionId { get; set; }
 
-        /// <summary>
-        /// Gets a value indicating whether the token can be refreshed.
-        /// </summary>
-        public bool CanRefresh => !string.IsNullOrEmpty(RefreshToken);
-    }
+    /// <summary>
+    /// Gets a value indicating whether the token is expired.
+    /// </summary>
+    public bool IsExpired => DateTimeOffset.UtcNow >= ExpiresAt;
+
+    /// <summary>
+    /// Gets a value indicating whether the token will expire soon (within 5 minutes).
+    /// </summary>
+    public bool IsExpiringSoon => DateTimeOffset.UtcNow.AddMinutes(5) >= ExpiresAt;
+
+    /// <summary>
+    /// Gets a value indicating whether the token can be refreshed.
+    /// </summary>
+    public bool CanRefresh => !string.IsNullOrEmpty(RefreshToken);
 }

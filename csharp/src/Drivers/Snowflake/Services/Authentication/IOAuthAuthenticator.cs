@@ -19,35 +19,34 @@ using System.Threading;
 using System.Threading.Tasks;
 using Apache.Arrow.Adbc.Drivers.Snowflake.Configuration;
 
-namespace Apache.Arrow.Adbc.Drivers.Snowflake.Services.Authentication
+namespace Apache.Arrow.Adbc.Drivers.Snowflake.Services.Authentication;
+
+/// <summary>
+/// Provides OAuth 2.0 authentication for Snowflake.
+/// </summary>
+public interface IOAuthAuthenticator
 {
     /// <summary>
-    /// Provides OAuth 2.0 authentication for Snowflake.
+    /// Authenticates using OAuth 2.0 token.
     /// </summary>
-    public interface IOAuthAuthenticator
-    {
-        /// <summary>
-        /// Authenticates using OAuth 2.0 token.
-        /// </summary>
-        /// <param name="account">The Snowflake account identifier.</param>
-        /// <param name="user">The username.</param>
-        /// <param name="oauthToken">The OAuth access token.</param>
-        /// <param name="cancellationToken">The cancellation token.</param>
-        /// <returns>An authentication token.</returns>
-        Task<AuthenticationToken> AuthenticateAsync(
-            string account,
-            string user,
-            string oauthToken,
-            CancellationToken cancellationToken = default);
+    /// <param name="account">The Snowflake account identifier.</param>
+    /// <param name="user">The username.</param>
+    /// <param name="oauthToken">The OAuth access token.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>An authentication token.</returns>
+    Task<AuthenticationToken> AuthenticateAsync(
+        string account,
+        string user,
+        string oauthToken,
+        CancellationToken cancellationToken = default);
 
-        /// <summary>
-        /// Refreshes an OAuth token using a refresh token.
-        /// </summary>
-        /// <param name="refreshToken">The refresh token.</param>
-        /// <param name="cancellationToken">The cancellation token.</param>
-        /// <returns>A new authentication token.</returns>
-        Task<AuthenticationToken> RefreshTokenAsync(
-            string refreshToken,
-            CancellationToken cancellationToken = default);
-    }
+    /// <summary>
+    /// Refreshes an OAuth token using a refresh token.
+    /// </summary>
+    /// <param name="refreshToken">The refresh token.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>A new authentication token.</returns>
+    Task<AuthenticationToken> RefreshTokenAsync(
+        string refreshToken,
+        CancellationToken cancellationToken = default);
 }

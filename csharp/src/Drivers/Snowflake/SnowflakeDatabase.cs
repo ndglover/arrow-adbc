@@ -23,81 +23,59 @@ using Apache.Arrow.Adbc.Drivers.Snowflake.Configuration;
 using Apache.Arrow.Adbc.Drivers.Snowflake.Services.Authentication;
 using Apache.Arrow.Adbc.Drivers.Snowflake.Services.ConnectionPool;
 
-namespace Apache.Arrow.Adbc.Drivers.Snowflake
+namespace Apache.Arrow.Adbc.Drivers.Snowflake;
+
+/// <summary>
+/// Snowflake database implementation for ADBC.
+/// </summary>
+public sealed class SnowflakeDatabase : AdbcDatabase
 {
+    private readonly IReadOnlyDictionary<string, string>? _parameters;
+    private readonly IConnectionPool _connectionPool;
+    private bool _disposed;
+
     /// <summary>
-    /// Snowflake database implementation for ADBC.
+    /// Initializes a new instance of the <see cref="SnowflakeDatabase"/> class.
     /// </summary>
-    public sealed class SnowflakeDatabase : AdbcDatabase
+    /// <param name="parameters">The ADBC connection parameters.</param>
+    public SnowflakeDatabase(IReadOnlyDictionary<string, string>? parameters = null)
     {
-        private readonly IReadOnlyDictionary<string, string> _parameters;
-        private readonly IConnectionPool _connectionPool;
-        private bool _disposed;
+        _parameters = parameters;
 
-        /// <summary>
-        /// Initializes a new instance of the <see cref="SnowflakeDatabase"/> class.
-        /// </summary>
-        /// <param name="parameters">The ADBC connection parameters.</param>
-        public SnowflakeDatabase(IReadOnlyDictionary<string, string> parameters)
+        // Initialize services
+        var httpClient = new HttpClient();
+        var basicAuth = new BasicAuthenticator(httpClient);
+        var keyPairAuth = new KeyPairAuthenticator(httpClient);
+        var oauthAuth = new OAuthAuthenticator(httpClient);
+        var ssoAuth = new SsoAuthenticator(httpClient);
+
+        var authService = new AuthenticationService(basicAuth, keyPairAuth, oauthAuth, ssoAuth);
+        _connectionPool = new ConnectionPool(authService);
+    }
+
+    /// <summary>
+    /// Creates a new connection to the Snowflake database.
+    /// </summary>
+    /// <param name="parameters">Connection-specific parameters that override database parameters.</param>
+    /// <returns>An AdbcConnection instance.</returns>
+    public override AdbcConnection Connect(IReadOnlyDictionary<string, string>? parameters)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        
+        var config = ConnectionStringParser.ParseParameters(parameters, _parameters);
+        return new SnowflakeConnection(config, _connectionPool);
+    }
+
+    /// <summary>
+    /// Disposes the database and releases any resources.
+    /// </summary>
+    public override void Dispose()
+    {
+        if (!_disposed)
         {
-            ArgumentNullException.ThrowIfNull(parameters);
-
-            _parameters = parameters;
-
-            // Initialize services
-            var httpClient = new HttpClient();
-            var basicAuth = new BasicAuthenticator(httpClient);
-            var keyPairAuth = new KeyPairAuthenticator(httpClient);
-            var oauthAuth = new OAuthAuthenticator(httpClient);
-            var ssoAuth = new SsoAuthenticator(httpClient);
-
-            var authService = new AuthenticationService(basicAuth, keyPairAuth, oauthAuth, ssoAuth);
-            _connectionPool = new ConnectionPool(authService);
+            _connectionPool?.Dispose();
+            _disposed = true;
         }
-
-        /// <summary>
-        /// Creates a new connection to the Snowflake database.
-        /// </summary>
-        /// <param name="parameters">Connection-specific parameters that override database parameters.</param>
-        /// <returns>An AdbcConnection instance.</returns>
-        public override AdbcConnection Connect(IReadOnlyDictionary<string, string>? parameters)
-        {
-            ObjectDisposedException.ThrowIf(_disposed, this);
-            
-            var mergedParameters = MergeConnectionParametersWithDatabaseDefaults(parameters);
-            var config = ConnectionStringParser.ParseParameters(mergedParameters);
-            return new SnowflakeConnection(config, _connectionPool);
-        }
-
-        /// <summary>
-        /// Disposes the database and releases any resources.
-        /// </summary>
-        public override void Dispose()
-        {
-            if (!_disposed)
-            {
-                _connectionPool?.Dispose();
-                _disposed = true;
-            }
-            base.Dispose();
-        }
-
-        private IReadOnlyDictionary<string, string> MergeConnectionParametersWithDatabaseDefaults(IReadOnlyDictionary<string, string>? connectionParameters)
-        {
-            if (connectionParameters == null)
-                return _parameters;
-
-            var merged = new Dictionary<string, string>(connectionParameters, StringComparer.OrdinalIgnoreCase);
-            
-            foreach (var kvp in _parameters)
-            {
-                if (!merged.ContainsKey(kvp.Key))
-                {
-                    merged[kvp.Key] = kvp.Value;
-                }
-            }
-            
-            return merged;
-        }
+        base.Dispose();
     }
 }

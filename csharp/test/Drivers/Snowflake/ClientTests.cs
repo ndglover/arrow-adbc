@@ -22,128 +22,127 @@ using Apache.Arrow.Ipc;
 using Xunit;
 using Xunit.Abstractions;
 
-namespace Apache.Arrow.Adbc.Tests.Drivers.Snowflake
+namespace Apache.Arrow.Adbc.Tests.Drivers.Snowflake;
+
+/// <summary>
+/// Integration tests for the native Snowflake ADBC driver.
+/// These tests require a real Snowflake instance and credentials.
+/// 
+/// Set the SNOWFLAKE_TEST_CONFIG_FILE environment variable to point to a JSON config file.
+/// The config file should use the same format as the Interop Snowflake tests.
+/// </summary>
+public class ClientTests : IDisposable
 {
-    /// <summary>
-    /// Integration tests for the native Snowflake ADBC driver.
-    /// These tests require a real Snowflake instance and credentials.
-    /// 
-    /// Set the SNOWFLAKE_TEST_CONFIG_FILE environment variable to point to a JSON config file.
-    /// The config file should use the same format as the Interop Snowflake tests.
-    /// </summary>
-    public class ClientTests : IDisposable
+    private readonly ITestOutputHelper _output;
+    private readonly SnowflakeTestConfiguration _testConfiguration;
+
+    public ClientTests(ITestOutputHelper output)
     {
-        private readonly ITestOutputHelper _output;
-        private readonly SnowflakeTestConfiguration _testConfiguration;
+        _output = output;
+        _testConfiguration = SnowflakeTestingUtils.TestConfiguration;
+        
+        Skip.If(string.IsNullOrEmpty(_testConfiguration.Account), 
+            $"Cannot execute test configuration from environment variable `{SnowflakeTestingUtils.SNOWFLAKE_TEST_CONFIG_VARIABLE}`");
+    }
 
-        public ClientTests(ITestOutputHelper output)
-        {
-            _output = output;
-            _testConfiguration = SnowflakeTestingUtils.TestConfiguration;
-            
-            Skip.If(string.IsNullOrEmpty(_testConfiguration.Account), 
-                $"Cannot execute test configuration from environment variable `{SnowflakeTestingUtils.SNOWFLAKE_TEST_CONFIG_VARIABLE}`");
-        }
+    [SkippableFact]
+    public void CanClientExecuteQuery()
+    {
+        var driver = SnowflakeTestingUtils.GetSnowflakeAdbcDriver(_testConfiguration, out var parameters);
+        
+        using var database = driver.Open(parameters);
+        using var connection = database.Connect(new Dictionary<string, string>());
+        using var statement = connection.CreateStatement();
+        
+        statement.SqlQuery = _testConfiguration.Query ?? "SELECT 1 as TESTCOL";
+        var result = statement.ExecuteQuery();
+        
+        Assert.NotNull(result);
+        Assert.NotNull(result.Stream);
+        
+        using var stream = result.Stream;
+        var batch = stream.ReadNextRecordBatchAsync().Result;
+        
+        Assert.NotNull(batch);
+        Assert.True(batch.Length > 0);
+        
+        _output.WriteLine($"Query returned {batch.Length} rows with {batch.ColumnCount} columns");
+    }
 
-        [SkippableFact]
-        public void CanClientExecuteQuery()
-        {
-            var driver = SnowflakeTestingUtils.GetSnowflakeAdbcDriver(_testConfiguration, out var parameters);
-            
-            using var database = driver.Open(parameters);
-            using var connection = database.Connect(new Dictionary<string, string>());
-            using var statement = connection.CreateStatement();
-            
-            statement.SqlQuery = _testConfiguration.Query ?? "SELECT 1 as TESTCOL";
-            var result = statement.ExecuteQuery();
-            
-            Assert.NotNull(result);
-            Assert.NotNull(result.Stream);
-            
-            using var stream = result.Stream;
-            var batch = stream.ReadNextRecordBatchAsync().Result;
-            
-            Assert.NotNull(batch);
-            Assert.True(batch.Length > 0);
-            
-            _output.WriteLine($"Query returned {batch.Length} rows with {batch.ColumnCount} columns");
-        }
+    [SkippableFact]
+    public async Task CanClientExecuteQueryAsync()
+    {
+        var driver = SnowflakeTestingUtils.GetSnowflakeAdbcDriver(_testConfiguration, out var parameters);
+        
+        using var database = driver.Open(parameters);
+        using var connection = database.Connect(new Dictionary<string, string>());
+        using var statement = connection.CreateStatement();
+        
+        statement.SqlQuery = _testConfiguration.Query ?? "SELECT 1 as TESTCOL";
+        var result = await statement.ExecuteQueryAsync();
+        
+        Assert.NotNull(result);
+        Assert.NotNull(result.Stream);
+        
+        using var stream = result.Stream;
+        var batch = await stream.ReadNextRecordBatchAsync();
+        
+        Assert.NotNull(batch);
+        Assert.True(batch.Length > 0);
+        
+        _output.WriteLine($"Query returned {batch.Length} rows with {batch.ColumnCount} columns");
+    }
 
-        [SkippableFact]
-        public async Task CanClientExecuteQueryAsync()
-        {
-            var driver = SnowflakeTestingUtils.GetSnowflakeAdbcDriver(_testConfiguration, out var parameters);
-            
-            using var database = driver.Open(parameters);
-            using var connection = database.Connect(new Dictionary<string, string>());
-            using var statement = connection.CreateStatement();
-            
-            statement.SqlQuery = _testConfiguration.Query ?? "SELECT 1 as TESTCOL";
-            var result = await statement.ExecuteQueryAsync();
-            
-            Assert.NotNull(result);
-            Assert.NotNull(result.Stream);
-            
-            using var stream = result.Stream;
-            var batch = await stream.ReadNextRecordBatchAsync();
-            
-            Assert.NotNull(batch);
-            Assert.True(batch.Length > 0);
-            
-            _output.WriteLine($"Query returned {batch.Length} rows with {batch.ColumnCount} columns");
-        }
+    [SkippableFact]
+    public void CanClientExecuteUpdate()
+    {
+        var driver = SnowflakeTestingUtils.GetSnowflakeAdbcDriver(_testConfiguration, out var parameters);
+        
+        using var database = driver.Open(parameters);
+        using var connection = database.Connect(new Dictionary<string, string>());
+        using var statement = connection.CreateStatement();
+        
+        // Simple query that doesn't modify data
+        statement.SqlQuery = "SELECT 1";
+        var result = statement.ExecuteUpdate();
+        
+        Assert.NotNull(result);
+        // ExecuteUpdate returns -1 for SELECT statements
+        Assert.True(result.AffectedRows >= -1);
+        
+        _output.WriteLine($"Update affected {result.AffectedRows} rows");
+    }
 
-        [SkippableFact]
-        public void CanClientExecuteUpdate()
+    [SkippableFact]
+    public void CanClientGetSchema()
+    {
+        var driver = SnowflakeTestingUtils.GetSnowflakeAdbcDriver(_testConfiguration, out var parameters);
+        
+        using var database = driver.Open(parameters);
+        using var connection = database.Connect(new Dictionary<string, string>());
+        using var statement = connection.CreateStatement();
+        
+        statement.SqlQuery = _testConfiguration.Query ?? "SELECT 1 as TESTCOL";
+        var result = statement.ExecuteQuery();
+        
+        Assert.NotNull(result);
+        Assert.NotNull(result.Stream);
+        
+        using var stream = result.Stream;
+        var schema = stream.Schema;
+        
+        Assert.NotNull(schema);
+        Assert.True(schema.FieldsList.Count > 0);
+        
+        _output.WriteLine($"Schema has {schema.FieldsList.Count} fields");
+        foreach (var field in schema.FieldsList)
         {
-            var driver = SnowflakeTestingUtils.GetSnowflakeAdbcDriver(_testConfiguration, out var parameters);
-            
-            using var database = driver.Open(parameters);
-            using var connection = database.Connect(new Dictionary<string, string>());
-            using var statement = connection.CreateStatement();
-            
-            // Simple query that doesn't modify data
-            statement.SqlQuery = "SELECT 1";
-            var result = statement.ExecuteUpdate();
-            
-            Assert.NotNull(result);
-            // ExecuteUpdate returns -1 for SELECT statements
-            Assert.True(result.AffectedRows >= -1);
-            
-            _output.WriteLine($"Update affected {result.AffectedRows} rows");
+            _output.WriteLine($"  {field.Name}: {field.DataType}");
         }
+    }
 
-        [SkippableFact]
-        public void CanClientGetSchema()
-        {
-            var driver = SnowflakeTestingUtils.GetSnowflakeAdbcDriver(_testConfiguration, out var parameters);
-            
-            using var database = driver.Open(parameters);
-            using var connection = database.Connect(new Dictionary<string, string>());
-            using var statement = connection.CreateStatement();
-            
-            statement.SqlQuery = _testConfiguration.Query ?? "SELECT 1 as TESTCOL";
-            var result = statement.ExecuteQuery();
-            
-            Assert.NotNull(result);
-            Assert.NotNull(result.Stream);
-            
-            using var stream = result.Stream;
-            var schema = stream.Schema;
-            
-            Assert.NotNull(schema);
-            Assert.True(schema.FieldsList.Count > 0);
-            
-            _output.WriteLine($"Schema has {schema.FieldsList.Count} fields");
-            foreach (var field in schema.FieldsList)
-            {
-                _output.WriteLine($"  {field.Name}: {field.DataType}");
-            }
-        }
-
-        public void Dispose()
-        {
-            // Cleanup if needed
-        }
+    public void Dispose()
+    {
+        // Cleanup if needed
     }
 }

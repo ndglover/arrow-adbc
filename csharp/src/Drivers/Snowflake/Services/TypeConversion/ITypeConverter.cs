@@ -18,39 +18,38 @@
 using Apache.Arrow;
 using Apache.Arrow.Types;
 
-namespace Apache.Arrow.Adbc.Drivers.Snowflake.Services.TypeConversion
+namespace Apache.Arrow.Adbc.Drivers.Snowflake.Services.TypeConversion;
+
+/// <summary>
+/// Converts between Snowflake and Arrow data types.
+/// </summary>
+public interface ITypeConverter
 {
     /// <summary>
-    /// Converts between Snowflake and Arrow data types.
+    /// Converts a Snowflake data type to an Arrow type.
     /// </summary>
-    public interface ITypeConverter
-    {
-        /// <summary>
-        /// Converts a Snowflake data type to an Arrow type.
-        /// </summary>
-        /// <param name="snowflakeType">The Snowflake data type.</param>
-        /// <returns>The corresponding Arrow type.</returns>
-        IArrowType ConvertSnowflakeTypeToArrow(SnowflakeDataType snowflakeType);
+    /// <param name="snowflakeType">The Snowflake data type.</param>
+    /// <returns>The corresponding Arrow type.</returns>
+    IArrowType ConvertSnowflakeTypeToArrow(SnowflakeDataType snowflakeType);
 
-        /// <summary>
-        /// Converts an Arrow type to a Snowflake data type.
-        /// </summary>
-        /// <param name="arrowType">The Arrow type.</param>
-        /// <returns>The corresponding Snowflake data type.</returns>
-        SnowflakeDataType ConvertArrowTypeToSnowflake(IArrowType arrowType);
+    /// <summary>
+    /// Converts an Arrow type to a Snowflake data type.
+    /// </summary>
+    /// <param name="arrowType">The Arrow type.</param>
+    /// <returns>The corresponding Snowflake data type.</returns>
+    SnowflakeDataType ConvertArrowTypeToSnowflake(IArrowType arrowType);
 
-        /// <summary>
-        /// Converts a Snowflake result set to Arrow record batches.
-        /// </summary>
-        /// <param name="resultSet">The Snowflake result set.</param>
-        /// <returns>A record batch containing the converted data.</returns>
-        RecordBatch ConvertSnowflakeResultToArrow(SnowflakeResultSet resultSet);
+    /// <summary>
+    /// Converts a Snowflake result set to Arrow record batches.
+    /// </summary>
+    /// <param name="resultSet">The Snowflake result set.</param>
+    /// <returns>A record batch containing the converted data.</returns>
+    RecordBatch ConvertSnowflakeResultToArrow(SnowflakeResultSet resultSet);
 
-        /// <summary>
-        /// Converts an Arrow record batch to Snowflake parameter bindings.
-        /// </summary>
-        /// <param name="batch">The Arrow record batch.</param>
-        /// <returns>A parameter set for Snowflake query execution.</returns>
-        ParameterSet ConvertArrowBatchToParameters(RecordBatch batch);
-    }
+    /// <summary>
+    /// Converts an Arrow record batch to Snowflake parameter bindings.
+    /// </summary>
+    /// <param name="batch">The Arrow record batch.</param>
+    /// <returns>A parameter set for Snowflake query execution.</returns>
+    ParameterSet ConvertArrowBatchToParameters(RecordBatch batch);
 }

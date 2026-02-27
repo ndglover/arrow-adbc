@@ -18,196 +18,195 @@
 using System;
 using System.Collections.Generic;
 
-namespace Apache.Arrow.Adbc.Drivers.Snowflake.Services.Transport
+namespace Apache.Arrow.Adbc.Drivers.Snowflake.Services.Transport;
+
+/// <summary>
+/// Builds requests for Snowflake SQL API.
+/// </summary>
+public class RequestBuilder
 {
     /// <summary>
-    /// Builds requests for Snowflake SQL API.
+    /// Builds a query execution request.
     /// </summary>
-    public class RequestBuilder
+    /// <param name="statement">The SQL statement to execute.</param>
+    /// <param name="database">The database name (optional).</param>
+    /// <param name="schema">The schema name (optional).</param>
+    /// <param name="warehouse">The warehouse name (optional).</param>
+    /// <param name="role">The role name (optional).</param>
+    /// <param name="timeout">The query timeout in seconds (optional).</param>
+    /// <param name="parameters">Query parameters (optional).</param>
+    /// <param name="isMultiStatement">Whether this is a multi-statement query.</param>
+    /// <returns>A query execution request object.</returns>
+    public static object BuildQueryRequest(
+        string statement,
+        string? database = null,
+        string? schema = null,
+        string? warehouse = null,
+        string? role = null,
+        int? timeout = null,
+        Dictionary<string, object>? parameters = null,
+        bool isMultiStatement = false)
     {
-        /// <summary>
-        /// Builds a query execution request.
-        /// </summary>
-        /// <param name="statement">The SQL statement to execute.</param>
-        /// <param name="database">The database name (optional).</param>
-        /// <param name="schema">The schema name (optional).</param>
-        /// <param name="warehouse">The warehouse name (optional).</param>
-        /// <param name="role">The role name (optional).</param>
-        /// <param name="timeout">The query timeout in seconds (optional).</param>
-        /// <param name="parameters">Query parameters (optional).</param>
-        /// <param name="isMultiStatement">Whether this is a multi-statement query.</param>
-        /// <returns>A query execution request object.</returns>
-        public static object BuildQueryRequest(
-            string statement,
-            string? database = null,
-            string? schema = null,
-            string? warehouse = null,
-            string? role = null,
-            int? timeout = null,
-            Dictionary<string, object>? parameters = null,
-            bool isMultiStatement = false)
+        if (string.IsNullOrEmpty(statement))
+            throw new ArgumentException("Statement cannot be null or empty.", nameof(statement));
+
+        // Snowflake v1 API format (reference: snowflake-connector-net)
+        var request = new Dictionary<string, object>
         {
-            if (string.IsNullOrEmpty(statement))
-                throw new ArgumentException("Statement cannot be null or empty.", nameof(statement));
+            ["sqlText"] = statement,
+            ["asyncExec"] = false,
+            ["describeOnly"] = false
+        };
 
-            // Snowflake v1 API format (reference: snowflake-connector-net)
-            var request = new Dictionary<string, object>
-            {
-                ["sqlText"] = statement,
-                ["asyncExec"] = false,
-                ["describeOnly"] = false
-            };
+        // Build parameters dictionary for session-level settings
+        var sessionParams = new Dictionary<string, string>();
+        
+        if (!string.IsNullOrEmpty(database))
+            sessionParams["DATABASE"] = database;
 
-            // Build parameters dictionary for session-level settings
-            var sessionParams = new Dictionary<string, string>();
-            
-            if (!string.IsNullOrEmpty(database))
-                sessionParams["DATABASE"] = database;
+        if (!string.IsNullOrEmpty(schema))
+            sessionParams["SCHEMA"] = schema;
 
-            if (!string.IsNullOrEmpty(schema))
-                sessionParams["SCHEMA"] = schema;
+        if (!string.IsNullOrEmpty(warehouse))
+            sessionParams["WAREHOUSE"] = warehouse;
 
-            if (!string.IsNullOrEmpty(warehouse))
-                sessionParams["WAREHOUSE"] = warehouse;
+        if (!string.IsNullOrEmpty(role))
+            sessionParams["ROLE"] = role;
 
-            if (!string.IsNullOrEmpty(role))
-                sessionParams["ROLE"] = role;
+        if (timeout.HasValue && timeout.Value > 0)
+            sessionParams["STATEMENT_TIMEOUT_IN_SECONDS"] = timeout.Value.ToString();
 
-            if (timeout.HasValue && timeout.Value > 0)
-                sessionParams["STATEMENT_TIMEOUT_IN_SECONDS"] = timeout.Value.ToString();
+        if (sessionParams.Count > 0)
+            request["parameters"] = sessionParams;
 
-            if (sessionParams.Count > 0)
-                request["parameters"] = sessionParams;
-
-            if (parameters != null && parameters.Count > 0)
-            {
-                request["bindings"] = parameters;
-            }
-
-            return request;
+        if (parameters != null && parameters.Count > 0)
+        {
+            request["bindings"] = parameters;
         }
 
-        /// <summary>
-        /// Builds a prepared statement request.
-        /// </summary>
-        /// <param name="statement">The SQL statement to prepare.</param>
-        /// <param name="database">The database name (optional).</param>
-        /// <param name="schema">The schema name (optional).</param>
-        /// <param name="warehouse">The warehouse name (optional).</param>
-        /// <param name="role">The role name (optional).</param>
-        /// <returns>A prepared statement request object.</returns>
-        public static object BuildPrepareRequest(
-            string statement,
-            string? database = null,
-            string? schema = null,
-            string? warehouse = null,
-            string? role = null)
+        return request;
+    }
+
+    /// <summary>
+    /// Builds a prepared statement request.
+    /// </summary>
+    /// <param name="statement">The SQL statement to prepare.</param>
+    /// <param name="database">The database name (optional).</param>
+    /// <param name="schema">The schema name (optional).</param>
+    /// <param name="warehouse">The warehouse name (optional).</param>
+    /// <param name="role">The role name (optional).</param>
+    /// <returns>A prepared statement request object.</returns>
+    public static object BuildPrepareRequest(
+        string statement,
+        string? database = null,
+        string? schema = null,
+        string? warehouse = null,
+        string? role = null)
+    {
+        if (string.IsNullOrEmpty(statement))
+            throw new ArgumentException("Statement cannot be null or empty.", nameof(statement));
+
+        var request = new Dictionary<string, object>
         {
-            if (string.IsNullOrEmpty(statement))
-                throw new ArgumentException("Statement cannot be null or empty.", nameof(statement));
+            ["statement"] = statement,
+            ["prepare"] = true
+        };
 
-            var request = new Dictionary<string, object>
-            {
-                ["statement"] = statement,
-                ["prepare"] = true
-            };
+        if (!string.IsNullOrEmpty(database))
+            request["database"] = database;
 
-            if (!string.IsNullOrEmpty(database))
-                request["database"] = database;
+        if (!string.IsNullOrEmpty(schema))
+            request["schema"] = schema;
 
-            if (!string.IsNullOrEmpty(schema))
-                request["schema"] = schema;
+        if (!string.IsNullOrEmpty(warehouse))
+            request["warehouse"] = warehouse;
 
-            if (!string.IsNullOrEmpty(warehouse))
-                request["warehouse"] = warehouse;
+        if (!string.IsNullOrEmpty(role))
+            request["role"] = role;
 
-            if (!string.IsNullOrEmpty(role))
-                request["role"] = role;
+        return request;
+    }
 
-            return request;
-        }
+    /// <summary>
+    /// Builds a batch execution request for prepared statements.
+    /// </summary>
+    /// <param name="statementHandle">The prepared statement handle.</param>
+    /// <param name="parameterSets">The parameter sets for batch execution.</param>
+    /// <returns>A batch execution request object.</returns>
+    public static object BuildBatchExecuteRequest(
+        string statementHandle,
+        List<Dictionary<string, object>> parameterSets)
+    {
+        if (string.IsNullOrEmpty(statementHandle))
+            throw new ArgumentException("Statement handle cannot be null or empty.", nameof(statementHandle));
 
-        /// <summary>
-        /// Builds a batch execution request for prepared statements.
-        /// </summary>
-        /// <param name="statementHandle">The prepared statement handle.</param>
-        /// <param name="parameterSets">The parameter sets for batch execution.</param>
-        /// <returns>A batch execution request object.</returns>
-        public static object BuildBatchExecuteRequest(
-            string statementHandle,
-            List<Dictionary<string, object>> parameterSets)
+        if (parameterSets == null || parameterSets.Count == 0)
+            throw new ArgumentException("Parameter sets cannot be null or empty.", nameof(parameterSets));
+
+        return new Dictionary<string, object>
         {
-            if (string.IsNullOrEmpty(statementHandle))
-                throw new ArgumentException("Statement handle cannot be null or empty.", nameof(statementHandle));
+            ["statementHandle"] = statementHandle,
+            ["bindings"] = parameterSets
+        };
+    }
 
-            if (parameterSets == null || parameterSets.Count == 0)
-                throw new ArgumentException("Parameter sets cannot be null or empty.", nameof(parameterSets));
+    /// <summary>
+    /// Builds a query cancellation request.
+    /// </summary>
+    /// <param name="queryId">The query ID to cancel.</param>
+    /// <returns>A query cancellation request object.</returns>
+    public static object BuildCancelRequest(string queryId)
+    {
+        if (string.IsNullOrEmpty(queryId))
+            throw new ArgumentException("Query ID cannot be null or empty.", nameof(queryId));
 
-            return new Dictionary<string, object>
-            {
-                ["statementHandle"] = statementHandle,
-                ["bindings"] = parameterSets
-            };
-        }
-
-        /// <summary>
-        /// Builds a query cancellation request.
-        /// </summary>
-        /// <param name="queryId">The query ID to cancel.</param>
-        /// <returns>A query cancellation request object.</returns>
-        public static object BuildCancelRequest(string queryId)
+        return new Dictionary<string, object>
         {
-            if (string.IsNullOrEmpty(queryId))
-                throw new ArgumentException("Query ID cannot be null or empty.", nameof(queryId));
+            ["queryId"] = queryId
+        };
+    }
 
-            return new Dictionary<string, object>
-            {
-                ["queryId"] = queryId
-            };
-        }
+    /// <summary>
+    /// Builds a metadata request.
+    /// </summary>
+    /// <param name="metadataType">The type of metadata to retrieve.</param>
+    /// <param name="databasePattern">The database pattern filter (optional).</param>
+    /// <param name="schemaPattern">The schema pattern filter (optional).</param>
+    /// <param name="tablePattern">The table pattern filter (optional).</param>
+    /// <param name="columnPattern">The column pattern filter (optional).</param>
+    /// <param name="tableTypes">The table types filter (optional).</param>
+    /// <returns>A metadata request object.</returns>
+    public static object BuildMetadataRequest(
+        string metadataType,
+        string? databasePattern = null,
+        string? schemaPattern = null,
+        string? tablePattern = null,
+        string? columnPattern = null,
+        string[]? tableTypes = null)
+    {
+        if (string.IsNullOrEmpty(metadataType))
+            throw new ArgumentException("Metadata type cannot be null or empty.", nameof(metadataType));
 
-        /// <summary>
-        /// Builds a metadata request.
-        /// </summary>
-        /// <param name="metadataType">The type of metadata to retrieve.</param>
-        /// <param name="databasePattern">The database pattern filter (optional).</param>
-        /// <param name="schemaPattern">The schema pattern filter (optional).</param>
-        /// <param name="tablePattern">The table pattern filter (optional).</param>
-        /// <param name="columnPattern">The column pattern filter (optional).</param>
-        /// <param name="tableTypes">The table types filter (optional).</param>
-        /// <returns>A metadata request object.</returns>
-        public static object BuildMetadataRequest(
-            string metadataType,
-            string? databasePattern = null,
-            string? schemaPattern = null,
-            string? tablePattern = null,
-            string? columnPattern = null,
-            string[]? tableTypes = null)
+        var request = new Dictionary<string, object>
         {
-            if (string.IsNullOrEmpty(metadataType))
-                throw new ArgumentException("Metadata type cannot be null or empty.", nameof(metadataType));
+            ["type"] = metadataType
+        };
 
-            var request = new Dictionary<string, object>
-            {
-                ["type"] = metadataType
-            };
+        if (!string.IsNullOrEmpty(databasePattern))
+            request["database"] = databasePattern;
 
-            if (!string.IsNullOrEmpty(databasePattern))
-                request["database"] = databasePattern;
+        if (!string.IsNullOrEmpty(schemaPattern))
+            request["schema"] = schemaPattern;
 
-            if (!string.IsNullOrEmpty(schemaPattern))
-                request["schema"] = schemaPattern;
+        if (!string.IsNullOrEmpty(tablePattern))
+            request["table"] = tablePattern;
 
-            if (!string.IsNullOrEmpty(tablePattern))
-                request["table"] = tablePattern;
+        if (!string.IsNullOrEmpty(columnPattern))
+            request["column"] = columnPattern;
 
-            if (!string.IsNullOrEmpty(columnPattern))
-                request["column"] = columnPattern;
+        if (tableTypes != null && tableTypes.Length > 0)
+            request["tableTypes"] = tableTypes;
 
-            if (tableTypes != null && tableTypes.Length > 0)
-                request["tableTypes"] = tableTypes;
-
-            return request;
-        }
+        return request;
     }
 }

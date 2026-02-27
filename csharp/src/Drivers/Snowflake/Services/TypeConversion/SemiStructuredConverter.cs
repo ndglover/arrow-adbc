@@ -22,193 +22,192 @@ using System.Text.Json;
 using Apache.Arrow;
 using Apache.Arrow.Types;
 
-namespace Apache.Arrow.Adbc.Drivers.Snowflake.Services.TypeConversion
+namespace Apache.Arrow.Adbc.Drivers.Snowflake.Services.TypeConversion;
+
+/// <summary>
+/// Handles conversion of Snowflake semi-structured data types (VARIANT, OBJECT, ARRAY).
+/// </summary>
+public class SemiStructuredConverter
 {
     /// <summary>
-    /// Handles conversion of Snowflake semi-structured data types (VARIANT, OBJECT, ARRAY).
+    /// Converts a Snowflake VARIANT value to an Arrow representation.
     /// </summary>
-    public class SemiStructuredConverter
+    /// <param name="variantValue">The VARIANT value as JSON string.</param>
+    /// <returns>The value in Arrow-compatible format.</returns>
+    public object? ConvertVariant(string? variantValue)
     {
-        /// <summary>
-        /// Converts a Snowflake VARIANT value to an Arrow representation.
-        /// </summary>
-        /// <param name="variantValue">The VARIANT value as JSON string.</param>
-        /// <returns>The value in Arrow-compatible format.</returns>
-        public object? ConvertVariant(string? variantValue)
-        {
-            if (string.IsNullOrEmpty(variantValue))
-                return null;
+        if (string.IsNullOrEmpty(variantValue))
+            return null;
 
-            try
+        try
+        {
+            // Parse JSON and determine the appropriate Arrow representation
+            using var document = JsonDocument.Parse(variantValue);
+            return ConvertJsonElement(document.RootElement);
+        }
+        catch (JsonException ex)
+        {
+            throw new InvalidOperationException($"Failed to parse VARIANT value: {ex.Message}", ex);
+        }
+    }
+
+    /// <summary>
+    /// Converts a Snowflake OBJECT value to an Arrow struct.
+    /// </summary>
+    /// <param name="objectValue">The OBJECT value as JSON string.</param>
+    /// <returns>A dictionary representing the object structure.</returns>
+    public Dictionary<string, object?>? ConvertObject(string? objectValue)
+    {
+        if (string.IsNullOrEmpty(objectValue))
+            return null;
+
+        try
+        {
+            using var document = JsonDocument.Parse(objectValue);
+            if (document.RootElement.ValueKind != JsonValueKind.Object)
+                throw new InvalidOperationException("Expected JSON object.");
+
+            var result = new Dictionary<string, object?>();
+            foreach (var property in document.RootElement.EnumerateObject())
             {
-                // Parse JSON and determine the appropriate Arrow representation
-                using var document = JsonDocument.Parse(variantValue);
-                return ConvertJsonElement(document.RootElement);
+                result[property.Name] = ConvertJsonElement(property.Value);
             }
-            catch (JsonException ex)
+            return result;
+        }
+        catch (JsonException ex)
+        {
+            throw new InvalidOperationException($"Failed to parse OBJECT value: {ex.Message}", ex);
+        }
+    }
+
+    /// <summary>
+    /// Converts a Snowflake ARRAY value to an Arrow list.
+    /// </summary>
+    /// <param name="arrayValue">The ARRAY value as JSON string.</param>
+    /// <returns>A list representing the array elements.</returns>
+    public List<object?>? ConvertArray(string? arrayValue)
+    {
+        if (string.IsNullOrEmpty(arrayValue))
+            return null;
+
+        try
+        {
+            using var document = JsonDocument.Parse(arrayValue);
+            if (document.RootElement.ValueKind != JsonValueKind.Array)
+                throw new InvalidOperationException("Expected JSON array.");
+
+            var result = new List<object?>();
+            foreach (var element in document.RootElement.EnumerateArray())
             {
-                throw new InvalidOperationException($"Failed to parse VARIANT value: {ex.Message}", ex);
+                result.Add(ConvertJsonElement(element));
+            }
+            return result;
+        }
+        catch (JsonException ex)
+        {
+            throw new InvalidOperationException($"Failed to parse ARRAY value: {ex.Message}", ex);
+        }
+    }
+
+    /// <summary>
+    /// Builds an Arrow struct type from a Snowflake OBJECT schema.
+    /// </summary>
+    /// <param name="sampleObject">A sample object to infer the schema from.</param>
+    /// <returns>An Arrow struct type.</returns>
+    public StructType BuildStructTypeFromObject(Dictionary<string, object?> sampleObject)
+    {
+        if (sampleObject == null)
+            throw new ArgumentNullException(nameof(sampleObject));
+
+        var fields = sampleObject.Select(kvp =>
+        {
+            var fieldType = InferArrowType(kvp.Value);
+            return new Field(kvp.Key, fieldType, nullable: true);
+        }).ToList();
+
+        return new StructType(fields);
+    }
+
+    /// <summary>
+    /// Builds an Arrow list type from a Snowflake ARRAY schema.
+    /// </summary>
+    /// <param name="sampleArray">A sample array to infer the schema from.</param>
+    /// <returns>An Arrow list type.</returns>
+    public ListType BuildListTypeFromArray(List<object?> sampleArray)
+    {
+        if (sampleArray == null)
+            throw new ArgumentNullException(nameof(sampleArray));
+
+        // Infer element type from first non-null element
+        IArrowType elementType = StringType.Default; // Default to string
+        
+        foreach (var element in sampleArray)
+        {
+            if (element != null)
+            {
+                elementType = InferArrowType(element);
+                break;
             }
         }
 
-        /// <summary>
-        /// Converts a Snowflake OBJECT value to an Arrow struct.
-        /// </summary>
-        /// <param name="objectValue">The OBJECT value as JSON string.</param>
-        /// <returns>A dictionary representing the object structure.</returns>
-        public Dictionary<string, object?>? ConvertObject(string? objectValue)
+        return new ListType(elementType);
+    }
+
+    private object? ConvertJsonElement(JsonElement element)
+    {
+        return element.ValueKind switch
         {
-            if (string.IsNullOrEmpty(objectValue))
-                return null;
+            JsonValueKind.Null => null,
+            JsonValueKind.True => true,
+            JsonValueKind.False => false,
+            JsonValueKind.Number => element.TryGetInt64(out var longValue) 
+                ? longValue 
+                : element.GetDouble(),
+            JsonValueKind.String => element.GetString(),
+            JsonValueKind.Array => element.EnumerateArray()
+                .Select(ConvertJsonElement)
+                .ToList(),
+            JsonValueKind.Object => element.EnumerateObject()
+                .ToDictionary(p => p.Name, p => ConvertJsonElement(p.Value)),
+            _ => throw new NotSupportedException($"JSON value kind {element.ValueKind} is not supported.")
+        };
+    }
 
-            try
-            {
-                using var document = JsonDocument.Parse(objectValue);
-                if (document.RootElement.ValueKind != JsonValueKind.Object)
-                    throw new InvalidOperationException("Expected JSON object.");
+    private IArrowType InferArrowType(object? value)
+    {
+        return value switch
+        {
+            null => StringType.Default, // Default to string for null
+            bool => BooleanType.Default,
+            long or int or short or byte => Int64Type.Default,
+            double or float or decimal => DoubleType.Default,
+            string => StringType.Default,
+            List<object?> => new ListType(StringType.Default),
+            Dictionary<string, object?> dict => BuildStructTypeFromObject(dict),
+            _ => StringType.Default
+        };
+    }
 
-                var result = new Dictionary<string, object?>();
-                foreach (var property in document.RootElement.EnumerateObject())
-                {
-                    result[property.Name] = ConvertJsonElement(property.Value);
-                }
-                return result;
-            }
-            catch (JsonException ex)
+    /// <summary>
+    /// Converts an Arrow value back to Snowflake JSON format.
+    /// </summary>
+    /// <param name="value">The value to convert.</param>
+    /// <returns>A JSON string representation.</returns>
+    public string? ConvertToSnowflakeJson(object? value)
+    {
+        if (value == null)
+            return null;
+
+        try
+        {
+            return JsonSerializer.Serialize(value, new JsonSerializerOptions
             {
-                throw new InvalidOperationException($"Failed to parse OBJECT value: {ex.Message}", ex);
-            }
+                WriteIndented = false
+            });
         }
-
-        /// <summary>
-        /// Converts a Snowflake ARRAY value to an Arrow list.
-        /// </summary>
-        /// <param name="arrayValue">The ARRAY value as JSON string.</param>
-        /// <returns>A list representing the array elements.</returns>
-        public List<object?>? ConvertArray(string? arrayValue)
+        catch (JsonException ex)
         {
-            if (string.IsNullOrEmpty(arrayValue))
-                return null;
-
-            try
-            {
-                using var document = JsonDocument.Parse(arrayValue);
-                if (document.RootElement.ValueKind != JsonValueKind.Array)
-                    throw new InvalidOperationException("Expected JSON array.");
-
-                var result = new List<object?>();
-                foreach (var element in document.RootElement.EnumerateArray())
-                {
-                    result.Add(ConvertJsonElement(element));
-                }
-                return result;
-            }
-            catch (JsonException ex)
-            {
-                throw new InvalidOperationException($"Failed to parse ARRAY value: {ex.Message}", ex);
-            }
-        }
-
-        /// <summary>
-        /// Builds an Arrow struct type from a Snowflake OBJECT schema.
-        /// </summary>
-        /// <param name="sampleObject">A sample object to infer the schema from.</param>
-        /// <returns>An Arrow struct type.</returns>
-        public StructType BuildStructTypeFromObject(Dictionary<string, object?> sampleObject)
-        {
-            if (sampleObject == null)
-                throw new ArgumentNullException(nameof(sampleObject));
-
-            var fields = sampleObject.Select(kvp =>
-            {
-                var fieldType = InferArrowType(kvp.Value);
-                return new Field(kvp.Key, fieldType, nullable: true);
-            }).ToList();
-
-            return new StructType(fields);
-        }
-
-        /// <summary>
-        /// Builds an Arrow list type from a Snowflake ARRAY schema.
-        /// </summary>
-        /// <param name="sampleArray">A sample array to infer the schema from.</param>
-        /// <returns>An Arrow list type.</returns>
-        public ListType BuildListTypeFromArray(List<object?> sampleArray)
-        {
-            if (sampleArray == null)
-                throw new ArgumentNullException(nameof(sampleArray));
-
-            // Infer element type from first non-null element
-            IArrowType elementType = StringType.Default; // Default to string
-            
-            foreach (var element in sampleArray)
-            {
-                if (element != null)
-                {
-                    elementType = InferArrowType(element);
-                    break;
-                }
-            }
-
-            return new ListType(elementType);
-        }
-
-        private object? ConvertJsonElement(JsonElement element)
-        {
-            return element.ValueKind switch
-            {
-                JsonValueKind.Null => null,
-                JsonValueKind.True => true,
-                JsonValueKind.False => false,
-                JsonValueKind.Number => element.TryGetInt64(out var longValue) 
-                    ? longValue 
-                    : element.GetDouble(),
-                JsonValueKind.String => element.GetString(),
-                JsonValueKind.Array => element.EnumerateArray()
-                    .Select(ConvertJsonElement)
-                    .ToList(),
-                JsonValueKind.Object => element.EnumerateObject()
-                    .ToDictionary(p => p.Name, p => ConvertJsonElement(p.Value)),
-                _ => throw new NotSupportedException($"JSON value kind {element.ValueKind} is not supported.")
-            };
-        }
-
-        private IArrowType InferArrowType(object? value)
-        {
-            return value switch
-            {
-                null => StringType.Default, // Default to string for null
-                bool => BooleanType.Default,
-                long or int or short or byte => Int64Type.Default,
-                double or float or decimal => DoubleType.Default,
-                string => StringType.Default,
-                List<object?> => new ListType(StringType.Default),
-                Dictionary<string, object?> dict => BuildStructTypeFromObject(dict),
-                _ => StringType.Default
-            };
-        }
-
-        /// <summary>
-        /// Converts an Arrow value back to Snowflake JSON format.
-        /// </summary>
-        /// <param name="value">The value to convert.</param>
-        /// <returns>A JSON string representation.</returns>
-        public string? ConvertToSnowflakeJson(object? value)
-        {
-            if (value == null)
-                return null;
-
-            try
-            {
-                return JsonSerializer.Serialize(value, new JsonSerializerOptions
-                {
-                    WriteIndented = false
-                });
-            }
-            catch (JsonException ex)
-            {
-                throw new InvalidOperationException($"Failed to serialize value to JSON: {ex.Message}", ex);
-            }
+            throw new InvalidOperationException($"Failed to serialize value to JSON: {ex.Message}", ex);
         }
     }
 }

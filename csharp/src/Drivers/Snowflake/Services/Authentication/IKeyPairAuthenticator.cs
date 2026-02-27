@@ -19,27 +19,26 @@ using System.Threading;
 using System.Threading.Tasks;
 using Apache.Arrow.Adbc.Drivers.Snowflake.Configuration;
 
-namespace Apache.Arrow.Adbc.Drivers.Snowflake.Services.Authentication
+namespace Apache.Arrow.Adbc.Drivers.Snowflake.Services.Authentication;
+
+/// <summary>
+/// Provides RSA key pair authentication for Snowflake.
+/// </summary>
+public interface IKeyPairAuthenticator
 {
     /// <summary>
-    /// Provides RSA key pair authentication for Snowflake.
+    /// Authenticates using RSA key pair.
     /// </summary>
-    public interface IKeyPairAuthenticator
-    {
-        /// <summary>
-        /// Authenticates using RSA key pair.
-        /// </summary>
-        /// <param name="account">The Snowflake account identifier.</param>
-        /// <param name="user">The username.</param>
-        /// <param name="privateKeyPath">The path to the private key file.</param>
-        /// <param name="privateKeyPassphrase">The passphrase for encrypted private keys (optional).</param>
-        /// <param name="cancellationToken">The cancellation token.</param>
-        /// <returns>An authentication token.</returns>
-        Task<AuthenticationToken> AuthenticateAsync(
-            string account,
-            string user,
-            string privateKeyPath,
-            string? privateKeyPassphrase = null,
-            CancellationToken cancellationToken = default);
-    }
+    /// <param name="account">The Snowflake account identifier.</param>
+    /// <param name="user">The username.</param>
+    /// <param name="privateKeyPath">The path to the private key file.</param>
+    /// <param name="privateKeyPassphrase">The passphrase for encrypted private keys (optional).</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>An authentication token.</returns>
+    Task<AuthenticationToken> AuthenticateAsync(
+        string account,
+        string user,
+        string privateKeyPath,
+        string? privateKeyPassphrase = null,
+        CancellationToken cancellationToken = default);
 }

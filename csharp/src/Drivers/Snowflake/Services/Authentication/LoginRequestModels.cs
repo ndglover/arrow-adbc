@@ -18,71 +18,70 @@
 using System.Collections.Generic;
 using System.Text.Json.Serialization;
 
-namespace Apache.Arrow.Adbc.Drivers.Snowflake.Services.Authentication
+namespace Apache.Arrow.Adbc.Drivers.Snowflake.Services.Authentication;
+
+/// <summary>
+/// Represents the login request body sent to Snowflake.
+/// </summary>
+internal class LoginRequestBody
 {
     /// <summary>
-    /// Represents the login request body sent to Snowflake.
+    /// Gets or sets the login request data.
     /// </summary>
-    internal class LoginRequestBody
-    {
-        /// <summary>
-        /// Gets or sets the login request data.
-        /// </summary>
-        [JsonPropertyName("data")]
-        public LoginRequestData Data { get; set; } = new();
-    }
+    [JsonPropertyName("data")]
+    public LoginRequestData Data { get; set; } = new();
+}
+
+/// <summary>
+/// Represents the data portion of the login request.
+/// </summary>
+internal class LoginRequestData
+{
+    /// <summary>
+    /// Gets or sets the client application ID.
+    /// </summary>
+    [JsonPropertyName("CLIENT_APP_ID")]
+    public string CLIENT_APP_ID { get; set; } = string.Empty;
 
     /// <summary>
-    /// Represents the data portion of the login request.
+    /// Gets or sets the client application version.
     /// </summary>
-    internal class LoginRequestData
-    {
-        /// <summary>
-        /// Gets or sets the client application ID.
-        /// </summary>
-        [JsonPropertyName("CLIENT_APP_ID")]
-        public string CLIENT_APP_ID { get; set; } = string.Empty;
+    [JsonPropertyName("CLIENT_APP_VERSION")]
+    public string CLIENT_APP_VERSION { get; set; } = string.Empty;
 
-        /// <summary>
-        /// Gets or sets the client application version.
-        /// </summary>
-        [JsonPropertyName("CLIENT_APP_VERSION")]
-        public string CLIENT_APP_VERSION { get; set; } = string.Empty;
+    /// <summary>
+    /// Gets or sets the Snowflake account name.
+    /// </summary>
+    [JsonPropertyName("ACCOUNT_NAME")]
+    public string ACCOUNT_NAME { get; set; } = string.Empty;
 
-        /// <summary>
-        /// Gets or sets the Snowflake account name.
-        /// </summary>
-        [JsonPropertyName("ACCOUNT_NAME")]
-        public string ACCOUNT_NAME { get; set; } = string.Empty;
+    /// <summary>
+    /// Gets or sets the login name (username).
+    /// </summary>
+    [JsonPropertyName("LOGIN_NAME")]
+    public string LOGIN_NAME { get; set; } = string.Empty;
 
-        /// <summary>
-        /// Gets or sets the login name (username).
-        /// </summary>
-        [JsonPropertyName("LOGIN_NAME")]
-        public string LOGIN_NAME { get; set; } = string.Empty;
+    /// <summary>
+    /// Gets or sets the password.
+    /// </summary>
+    [JsonPropertyName("PASSWORD")]
+    public string PASSWORD { get; set; } = string.Empty;
 
-        /// <summary>
-        /// Gets or sets the password.
-        /// </summary>
-        [JsonPropertyName("PASSWORD")]
-        public string PASSWORD { get; set; } = string.Empty;
+    /// <summary>
+    /// Gets or sets the authenticator type.
+    /// </summary>
+    [JsonPropertyName("AUTHENTICATOR")]
+    public string AUTHENTICATOR { get; set; } = "snowflake";
 
-        /// <summary>
-        /// Gets or sets the authenticator type.
-        /// </summary>
-        [JsonPropertyName("AUTHENTICATOR")]
-        public string AUTHENTICATOR { get; set; } = "snowflake";
+    /// <summary>
+    /// Gets or sets the client environment information.
+    /// </summary>
+    [JsonPropertyName("CLIENT_ENVIRONMENT")]
+    public ClientEnvironment CLIENT_ENVIRONMENT { get; set; } = new();
 
-        /// <summary>
-        /// Gets or sets the client environment information.
-        /// </summary>
-        [JsonPropertyName("CLIENT_ENVIRONMENT")]
-        public ClientEnvironment CLIENT_ENVIRONMENT { get; set; } = new();
-
-        /// <summary>
-        /// Gets or sets the session parameters.
-        /// </summary>
-        [JsonPropertyName("SESSION_PARAMETERS")]
-        public Dictionary<string, object> SESSION_PARAMETERS { get; set; } = new();
-    }
+    /// <summary>
+    /// Gets or sets the session parameters.
+    /// </summary>
+    [JsonPropertyName("SESSION_PARAMETERS")]
+    public Dictionary<string, object> SESSION_PARAMETERS { get; set; } = new();
 }

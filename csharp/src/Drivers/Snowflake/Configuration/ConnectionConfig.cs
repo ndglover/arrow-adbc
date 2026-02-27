@@ -19,64 +19,63 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 
-namespace Apache.Arrow.Adbc.Drivers.Snowflake.Configuration
+namespace Apache.Arrow.Adbc.Drivers.Snowflake.Configuration;
+
+/// <summary>
+/// Represents connection configuration parameters for Snowflake ADBC driver.
+/// </summary>
+public class ConnectionConfig
 {
     /// <summary>
-    /// Represents connection configuration parameters for Snowflake ADBC driver.
+    /// Gets or sets the Snowflake account identifier.
     /// </summary>
-    public class ConnectionConfig
-    {
-        /// <summary>
-        /// Gets or sets the Snowflake account identifier.
-        /// </summary>
-        [Required]
-        public string Account { get; set; } = string.Empty;
+    [Required]
+    public string Account { get; set; } = string.Empty;
 
-        /// <summary>
-        /// Gets or sets the username for authentication.
-        /// </summary>
-        [Required]
-        public string User { get; set; } = string.Empty;
+    /// <summary>
+    /// Gets or sets the username for authentication.
+    /// </summary>
+    [Required]
+    public string User { get; set; } = string.Empty;
 
-        /// <summary>
-        /// Gets or sets the default database name.
-        /// </summary>
-        public string? Database { get; set; }
+    /// <summary>
+    /// Gets or sets the default database name.
+    /// </summary>
+    public string? Database { get; set; }
 
-        /// <summary>
-        /// Gets or sets the default schema name.
-        /// </summary>
-        public string? Schema { get; set; }
+    /// <summary>
+    /// Gets or sets the default schema name.
+    /// </summary>
+    public string? Schema { get; set; }
 
-        /// <summary>
-        /// Gets or sets the warehouse to use for query execution.
-        /// </summary>
-        public string? Warehouse { get; set; }
+    /// <summary>
+    /// Gets or sets the warehouse to use for query execution.
+    /// </summary>
+    public string? Warehouse { get; set; }
 
-        /// <summary>
-        /// Gets or sets the role to assume after connection.
-        /// </summary>
-        public string? Role { get; set; }
+    /// <summary>
+    /// Gets or sets the role to assume after connection.
+    /// </summary>
+    public string? Role { get; set; }
 
-        /// <summary>
-        /// Gets or sets the authentication configuration.
-        /// </summary>
-        [Required]
-        public AuthenticationConfig Authentication { get; set; } = new();
+    /// <summary>
+    /// Gets or sets the authentication configuration.
+    /// </summary>
+    [Required]
+    public AuthenticationConfig Authentication { get; set; } = new();
 
-        /// <summary>
-        /// Gets or sets the connection pool configuration.
-        /// </summary>
-        public ConnectionPoolConfig PoolConfig { get; set; } = new();
+    /// <summary>
+    /// Gets or sets the connection pool configuration.
+    /// </summary>
+    public ConnectionPoolConfig PoolConfig { get; set; } = new();
 
-        /// <summary>
-        /// Gets or sets the query timeout.
-        /// </summary>
-        public TimeSpan QueryTimeout { get; set; } = TimeSpan.FromMinutes(5);
+    /// <summary>
+    /// Gets or sets the query timeout.
+    /// </summary>
+    public TimeSpan QueryTimeout { get; set; } = TimeSpan.FromMinutes(5);
 
-        /// <summary>
-        /// Gets or sets whether to enable compression for requests.
-        /// </summary>
-        public bool EnableCompression { get; set; } = true;
-    }
+    /// <summary>
+    /// Gets or sets whether to enable compression for requests.
+    /// </summary>
+    public bool EnableCompression { get; set; } = true;
 }

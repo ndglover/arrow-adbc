@@ -19,50 +19,49 @@ using System;
 using System.Runtime.InteropServices;
 using System.Text.Json.Serialization;
 
-namespace Apache.Arrow.Adbc.Drivers.Snowflake.Services.Authentication
+namespace Apache.Arrow.Adbc.Drivers.Snowflake.Services.Authentication;
+
+/// <summary>
+/// Represents client environment information for Snowflake authentication.
+/// </summary>
+internal class ClientEnvironment
 {
     /// <summary>
-    /// Represents client environment information for Snowflake authentication.
+    /// Gets or sets the application name.
     /// </summary>
-    internal class ClientEnvironment
+    [JsonPropertyName("APPLICATION")]
+    public string APPLICATION { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Gets or sets the operating system version.
+    /// </summary>
+    [JsonPropertyName("OS_VERSION")]
+    public string OS_VERSION { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Gets or sets the .NET runtime identifier.
+    /// </summary>
+    [JsonPropertyName("NET_RUNTIME")]
+    public string NET_RUNTIME { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Gets or sets the .NET version.
+    /// </summary>
+    [JsonPropertyName("NET_VERSION")]
+    public string NET_VERSION { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Creates a ClientEnvironment instance with system information.
+    /// </summary>
+    /// <returns>A populated ClientEnvironment instance.</returns>
+    public static ClientEnvironment Create()
     {
-        /// <summary>
-        /// Gets or sets the application name.
-        /// </summary>
-        [JsonPropertyName("APPLICATION")]
-        public string APPLICATION { get; set; } = string.Empty;
-
-        /// <summary>
-        /// Gets or sets the operating system version.
-        /// </summary>
-        [JsonPropertyName("OS_VERSION")]
-        public string OS_VERSION { get; set; } = string.Empty;
-
-        /// <summary>
-        /// Gets or sets the .NET runtime identifier.
-        /// </summary>
-        [JsonPropertyName("NET_RUNTIME")]
-        public string NET_RUNTIME { get; set; } = string.Empty;
-
-        /// <summary>
-        /// Gets or sets the .NET version.
-        /// </summary>
-        [JsonPropertyName("NET_VERSION")]
-        public string NET_VERSION { get; set; } = string.Empty;
-
-        /// <summary>
-        /// Creates a ClientEnvironment instance with system information.
-        /// </summary>
-        /// <returns>A populated ClientEnvironment instance.</returns>
-        public static ClientEnvironment Create()
+        return new ClientEnvironment
         {
-            return new ClientEnvironment
-            {
-                APPLICATION = "ADBC",
-                OS_VERSION = RuntimeInformation.OSDescription,
-                NET_RUNTIME = RuntimeInformation.FrameworkDescription,
-                NET_VERSION = Environment.Version.ToString()
-            };
-        }
+            APPLICATION = "ADBC",
+            OS_VERSION = RuntimeInformation.OSDescription,
+            NET_RUNTIME = RuntimeInformation.FrameworkDescription,
+            NET_VERSION = Environment.Version.ToString()
+        };
     }
 }

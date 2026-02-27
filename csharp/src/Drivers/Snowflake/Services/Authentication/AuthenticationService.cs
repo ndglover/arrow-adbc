@@ -22,100 +22,99 @@ using System.Threading;
 using System.Threading.Tasks;
 using Apache.Arrow.Adbc.Drivers.Snowflake.Configuration;
 
-namespace Apache.Arrow.Adbc.Drivers.Snowflake.Services.Authentication
+namespace Apache.Arrow.Adbc.Drivers.Snowflake.Services.Authentication;
+
+/// <summary>
+/// Provides authentication services for Snowflake connections.
+/// </summary>
+public class AuthenticationService : IAuthenticationService
 {
+    private readonly IBasicAuthenticator _basicAuth;
+    private readonly IKeyPairAuthenticator _keyPairAuth;
+    private readonly IOAuthAuthenticator _oauthAuth;
+    private readonly ISsoAuthenticator _ssoAuth;
+    private readonly ConcurrentDictionary<string, AuthenticationToken> _tokenCache;
+
     /// <summary>
-    /// Provides authentication services for Snowflake connections.
+    /// Initializes a new instance of the <see cref="AuthenticationService"/> class.
     /// </summary>
-    public class AuthenticationService : IAuthenticationService
+    /// <param name="basicAuth">The basic authenticator.</param>
+    /// <param name="keyPairAuth">The key pair authenticator.</param>
+    /// <param name="oauthAuth">The OAuth authenticator.</param>
+    /// <param name="ssoAuth">The SSO authenticator.</param>
+    public AuthenticationService(
+        IBasicAuthenticator basicAuth,
+        IKeyPairAuthenticator keyPairAuth,
+        IOAuthAuthenticator oauthAuth,
+        ISsoAuthenticator ssoAuth)
     {
-        private readonly IBasicAuthenticator _basicAuth;
-        private readonly IKeyPairAuthenticator _keyPairAuth;
-        private readonly IOAuthAuthenticator _oauthAuth;
-        private readonly ISsoAuthenticator _ssoAuth;
-        private readonly ConcurrentDictionary<string, AuthenticationToken> _tokenCache;
-
-        /// <summary>
-        /// Initializes a new instance of the <see cref="AuthenticationService"/> class.
-        /// </summary>
-        /// <param name="basicAuth">The basic authenticator.</param>
-        /// <param name="keyPairAuth">The key pair authenticator.</param>
-        /// <param name="oauthAuth">The OAuth authenticator.</param>
-        /// <param name="ssoAuth">The SSO authenticator.</param>
-        public AuthenticationService(
-            IBasicAuthenticator basicAuth,
-            IKeyPairAuthenticator keyPairAuth,
-            IOAuthAuthenticator oauthAuth,
-            ISsoAuthenticator ssoAuth)
-        {
-            _basicAuth = basicAuth ?? throw new ArgumentNullException(nameof(basicAuth));
-            _keyPairAuth = keyPairAuth ?? throw new ArgumentNullException(nameof(keyPairAuth));
-            _oauthAuth = oauthAuth ?? throw new ArgumentNullException(nameof(oauthAuth));
-            _ssoAuth = ssoAuth ?? throw new ArgumentNullException(nameof(ssoAuth));
-            _tokenCache = new ConcurrentDictionary<string, AuthenticationToken>();
-        }
-
-        /// <inheritdoc/>
-        public async Task<AuthenticationToken> AuthenticateAsync(
-            string account,
-            string user,
-            AuthenticationConfig authConfig,
-            ConnectionConfig? connectionConfig = null,
-            CancellationToken cancellationToken = default)
-        {
-            if (string.IsNullOrEmpty(account))
-                throw new ArgumentException("Account cannot be null or empty.", nameof(account));
-            
-            if (string.IsNullOrEmpty(user))
-                throw new ArgumentException("User cannot be null or empty.", nameof(user));
-
-            if (authConfig == null)
-                throw new ArgumentNullException(nameof(authConfig));
-
-            // Validate configuration
-            var validationResults = authConfig.Validate();
-            if (validationResults.Any())
-            {
-                var errors = string.Join(", ", validationResults.Select(r => r.ErrorMessage));
-                throw new ArgumentException($"Invalid authentication configuration: {errors}", nameof(authConfig));
-            }
-
-            // Route to appropriate authenticator based on type
-            return authConfig.Type switch
-            {
-                AuthenticationType.UsernamePassword => await _basicAuth.AuthenticateAsync(account, user, authConfig.Password!, connectionConfig, cancellationToken),
-                AuthenticationType.KeyPair => await _keyPairAuth.AuthenticateAsync(account, user, authConfig.PrivateKeyPath!, authConfig.PrivateKeyPassphrase, cancellationToken),
-                AuthenticationType.OAuth => await _oauthAuth.AuthenticateAsync(account, user, authConfig.OAuthToken!, cancellationToken),
-                AuthenticationType.Sso or AuthenticationType.ExternalBrowser => await _ssoAuth.AuthenticateAsync(account, user, authConfig.SsoProperties, cancellationToken),
-                _ => throw new NotSupportedException($"Authentication type {authConfig.Type} is not supported.")
-            };
-        }
-
-        /// <inheritdoc/>
-        public async Task<AuthenticationToken> RefreshTokenAsync(
-            AuthenticationToken token,
-            CancellationToken cancellationToken = default)
-        {
-            if (token == null)
-                throw new ArgumentNullException(nameof(token));
-
-            if (!token.CanRefresh)
-                throw new InvalidOperationException("Token cannot be refreshed. No refresh token available.");
-
-            return await _oauthAuth.RefreshTokenAsync(token.RefreshToken!, cancellationToken);
-        }
-
-        /// <inheritdoc/>
-        public void InvalidateToken(AuthenticationToken token)
-        {
-            if (token == null)
-                throw new ArgumentNullException(nameof(token));
-
-            // Remove from cache if present
-            var cacheKey = token.AccessToken;
-            _tokenCache.TryRemove(cacheKey, out _);
-        }
-
-
+        _basicAuth = basicAuth ?? throw new ArgumentNullException(nameof(basicAuth));
+        _keyPairAuth = keyPairAuth ?? throw new ArgumentNullException(nameof(keyPairAuth));
+        _oauthAuth = oauthAuth ?? throw new ArgumentNullException(nameof(oauthAuth));
+        _ssoAuth = ssoAuth ?? throw new ArgumentNullException(nameof(ssoAuth));
+        _tokenCache = new ConcurrentDictionary<string, AuthenticationToken>();
     }
+
+    /// <inheritdoc/>
+    public async Task<AuthenticationToken> AuthenticateAsync(
+        string account,
+        string user,
+        AuthenticationConfig authConfig,
+        ConnectionConfig? connectionConfig = null,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrEmpty(account))
+            throw new ArgumentException("Account cannot be null or empty.", nameof(account));
+        
+        if (string.IsNullOrEmpty(user))
+            throw new ArgumentException("User cannot be null or empty.", nameof(user));
+
+        if (authConfig == null)
+            throw new ArgumentNullException(nameof(authConfig));
+
+        // Validate configuration
+        var validationResults = authConfig.Validate();
+        if (validationResults.Any())
+        {
+            var errors = string.Join(", ", validationResults.Select(r => r.ErrorMessage));
+            throw new ArgumentException($"Invalid authentication configuration: {errors}", nameof(authConfig));
+        }
+
+        // Route to appropriate authenticator based on type
+        return authConfig.Type switch
+        {
+            AuthenticationType.UsernamePassword => await _basicAuth.AuthenticateAsync(account, user, authConfig.Password!, connectionConfig, cancellationToken),
+            AuthenticationType.KeyPair => await _keyPairAuth.AuthenticateAsync(account, user, authConfig.PrivateKeyPath!, authConfig.PrivateKeyPassphrase, cancellationToken),
+            AuthenticationType.OAuth => await _oauthAuth.AuthenticateAsync(account, user, authConfig.OAuthToken!, cancellationToken),
+            AuthenticationType.Sso or AuthenticationType.ExternalBrowser => await _ssoAuth.AuthenticateAsync(account, user, authConfig.SsoProperties, cancellationToken),
+            _ => throw new NotSupportedException($"Authentication type {authConfig.Type} is not supported.")
+        };
+    }
+
+    /// <inheritdoc/>
+    public async Task<AuthenticationToken> RefreshTokenAsync(
+        AuthenticationToken token,
+        CancellationToken cancellationToken = default)
+    {
+        if (token == null)
+            throw new ArgumentNullException(nameof(token));
+
+        if (!token.CanRefresh)
+            throw new InvalidOperationException("Token cannot be refreshed. No refresh token available.");
+
+        return await _oauthAuth.RefreshTokenAsync(token.RefreshToken!, cancellationToken);
+    }
+
+    /// <inheritdoc/>
+    public void InvalidateToken(AuthenticationToken token)
+    {
+        if (token == null)
+            throw new ArgumentNullException(nameof(token));
+
+        // Remove from cache if present
+        var cacheKey = token.AccessToken;
+        _tokenCache.TryRemove(cacheKey, out _);
+    }
+
+
 }

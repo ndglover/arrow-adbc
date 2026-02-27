@@ -15,46 +15,45 @@
  * limitations under the License.
  */
 
-namespace Apache.Arrow.Adbc.Drivers.Snowflake.Services.ConnectionPool
+namespace Apache.Arrow.Adbc.Drivers.Snowflake.Services.ConnectionPool;
+
+/// <summary>
+/// Represents connection pool statistics.
+/// </summary>
+public class PoolStatistics
 {
     /// <summary>
-    /// Represents connection pool statistics.
+    /// Gets or sets the total number of connections in the pool.
     /// </summary>
-    public class PoolStatistics
-    {
-        /// <summary>
-        /// Gets or sets the total number of connections in the pool.
-        /// </summary>
-        public int TotalConnections { get; set; }
+    public int TotalConnections { get; set; }
 
-        /// <summary>
-        /// Gets or sets the number of active (in-use) connections.
-        /// </summary>
-        public int ActiveConnections { get; set; }
+    /// <summary>
+    /// Gets or sets the number of active (in-use) connections.
+    /// </summary>
+    public int ActiveConnections { get; set; }
 
-        /// <summary>
-        /// Gets or sets the number of idle connections.
-        /// </summary>
-        public int IdleConnections { get; set; }
+    /// <summary>
+    /// Gets or sets the number of idle connections.
+    /// </summary>
+    public int IdleConnections { get; set; }
 
-        /// <summary>
-        /// Gets or sets the number of connection requests waiting.
-        /// </summary>
-        public int WaitingRequests { get; set; }
+    /// <summary>
+    /// Gets or sets the number of connection requests waiting.
+    /// </summary>
+    public int WaitingRequests { get; set; }
 
-        /// <summary>
-        /// Gets or sets the total number of connections created.
-        /// </summary>
-        public long TotalConnectionsCreated { get; set; }
+    /// <summary>
+    /// Gets or sets the total number of connections created.
+    /// </summary>
+    public long TotalConnectionsCreated { get; set; }
 
-        /// <summary>
-        /// Gets or sets the total number of connections closed.
-        /// </summary>
-        public long TotalConnectionsClosed { get; set; }
+    /// <summary>
+    /// Gets or sets the total number of connections closed.
+    /// </summary>
+    public long TotalConnectionsClosed { get; set; }
 
-        /// <summary>
-        /// Gets or sets the total number of connection reuses.
-        /// </summary>
-        public long TotalConnectionReuses { get; set; }
-    }
+    /// <summary>
+    /// Gets or sets the total number of connection reuses.
+    /// </summary>
+    public long TotalConnectionReuses { get; set; }
 }

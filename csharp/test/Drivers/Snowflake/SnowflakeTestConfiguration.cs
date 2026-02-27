@@ -17,115 +17,114 @@
 
 using System.Text.Json.Serialization;
 
-namespace Apache.Arrow.Adbc.Tests.Drivers.Snowflake
+namespace Apache.Arrow.Adbc.Tests.Drivers.Snowflake;
+
+/// <summary>
+/// Configuration settings for working with native Snowflake driver.
+/// Uses the same JSON format as Interop tests for compatibility.
+/// </summary>
+internal class SnowflakeTestConfiguration : TestConfiguration
 {
     /// <summary>
-    /// Configuration settings for working with native Snowflake driver.
-    /// Uses the same JSON format as Interop tests for compatibility.
+    /// The Snowflake account.
     /// </summary>
-    internal class SnowflakeTestConfiguration : TestConfiguration
-    {
-        /// <summary>
-        /// The Snowflake account.
-        /// </summary>
-        [JsonPropertyName("account")]
-        public string Account { get; set; } = string.Empty;
+    [JsonPropertyName("account")]
+    public string Account { get; set; } = string.Empty;
 
-        /// <summary>
-        /// The Snowflake host (optional, derived from account if not provided).
-        /// </summary>
-        [JsonPropertyName("host")]
-        public string Host { get; set; } = string.Empty;
+    /// <summary>
+    /// The Snowflake host (optional, derived from account if not provided).
+    /// </summary>
+    [JsonPropertyName("host")]
+    public string Host { get; set; } = string.Empty;
 
-        /// <summary>
-        /// The Snowflake database.
-        /// </summary>
-        [JsonPropertyName("database")]
-        public string Database { get; set; } = string.Empty;
+    /// <summary>
+    /// The Snowflake database.
+    /// </summary>
+    [JsonPropertyName("database")]
+    public string Database { get; set; } = string.Empty;
 
-        /// <summary>
-        /// The Snowflake schema.
-        /// </summary>
-        [JsonPropertyName("schema")]
-        public string Schema { get; set; } = string.Empty;
+    /// <summary>
+    /// The Snowflake schema.
+    /// </summary>
+    [JsonPropertyName("schema")]
+    public string Schema { get; set; } = string.Empty;
 
-        /// <summary>
-        /// The Snowflake user.
-        /// </summary>
-        [JsonPropertyName("user")]
-        public string User { get; set; } = string.Empty;
+    /// <summary>
+    /// The Snowflake user.
+    /// </summary>
+    [JsonPropertyName("user")]
+    public string User { get; set; } = string.Empty;
 
-        /// <summary>
-        /// The Snowflake password (if using).
-        /// </summary>
-        [JsonPropertyName("password")]
-        public string Password { get; set; } = string.Empty;
+    /// <summary>
+    /// The Snowflake password (if using).
+    /// </summary>
+    [JsonPropertyName("password")]
+    public string Password { get; set; } = string.Empty;
 
-        /// <summary>
-        /// The Snowflake warehouse.
-        /// </summary>
-        [JsonPropertyName("warehouse")]
-        public string Warehouse { get; set; } = string.Empty;
+    /// <summary>
+    /// The Snowflake warehouse.
+    /// </summary>
+    [JsonPropertyName("warehouse")]
+    public string Warehouse { get; set; } = string.Empty;
 
-        /// <summary>
-        /// The Snowflake role.
-        /// </summary>
-        [JsonPropertyName("role")]
-        public string Role { get; set; } = string.Empty;
+    /// <summary>
+    /// The Snowflake role.
+    /// </summary>
+    [JsonPropertyName("role")]
+    public string Role { get; set; } = string.Empty;
 
-        /// <summary>
-        /// The snowflake Authentication
-        /// </summary>
-        [JsonPropertyName("authentication")]
-        public SnowflakeAuthentication Authentication { get; set; } = new SnowflakeAuthentication();
-    }
+    /// <summary>
+    /// The snowflake Authentication
+    /// </summary>
+    [JsonPropertyName("authentication")]
+    public SnowflakeAuthentication Authentication { get; set; } = new SnowflakeAuthentication();
+}
 
-    public class SnowflakeAuthentication
-    {
-        public const string AuthOAuth = "auth_oauth";
-        public const string AuthJwt = "auth_jwt";
-        public const string AuthSnowflake = "auth_snowflake";
+public class SnowflakeAuthentication
+{
+    public const string AuthOAuth = "auth_oauth";
+    public const string AuthJwt = "auth_jwt";
+    public const string AuthSnowflake = "auth_snowflake";
 
-        [JsonPropertyName(AuthOAuth)]
-        public OAuthAuthentication? OAuth { get; set; }
+    [JsonPropertyName(AuthOAuth)]
+    public OAuthAuthentication? OAuth { get; set; }
 
-        [JsonPropertyName(AuthJwt)]
-        public JwtAuthentication? SnowflakeJwt { get; set; }
+    [JsonPropertyName(AuthJwt)]
+    public JwtAuthentication? SnowflakeJwt { get; set; }
 
-        [JsonPropertyName(AuthSnowflake)]
-        public DefaultAuthentication? Default { get; set; }
-    }
+    [JsonPropertyName(AuthSnowflake)]
+    public DefaultAuthentication? Default { get; set; }
+}
 
-    public class OAuthAuthentication
-    {
-        [JsonPropertyName("token")]
-        public string Token { get; set; } = string.Empty;
+public class OAuthAuthentication
+{
+    [JsonPropertyName("token")]
+    public string Token { get; set; } = string.Empty;
 
-        [JsonPropertyName("user")]
-        public string User { get; set; } = string.Empty;
-    }
+    [JsonPropertyName("user")]
+    public string User { get; set; } = string.Empty;
+}
 
-    public class JwtAuthentication
-    {
-        [JsonPropertyName("private_key")]
-        public string PrivateKey { get; set; } = string.Empty;
+public class JwtAuthentication
+{
+    [JsonPropertyName("private_key")]
+    public string PrivateKey { get; set; } = string.Empty;
 
-        [JsonPropertyName("private_key_file")]
-        public string PrivateKeyFile { get; set; } = string.Empty;
+    [JsonPropertyName("private_key_file")]
+    public string PrivateKeyFile { get; set; } = string.Empty;
 
-        [JsonPropertyName("private_key_pwd")]
-        public string PrivateKeyPassPhrase { get; set; } = string.Empty;
+    [JsonPropertyName("private_key_pwd")]
+    public string PrivateKeyPassPhrase { get; set; } = string.Empty;
 
-        [JsonPropertyName("user")]
-        public string User { get; set; } = string.Empty;
-    }
+    [JsonPropertyName("user")]
+    public string User { get; set; } = string.Empty;
+}
 
-    public class DefaultAuthentication
-    {
-        [JsonPropertyName("user")]
-        public string User { get; set; } = string.Empty;
+public class DefaultAuthentication
+{
+    [JsonPropertyName("user")]
+    public string User { get; set; } = string.Empty;
 
-        [JsonPropertyName("password")]
-        public string Password { get; set; } = string.Empty;
-    }
+    [JsonPropertyName("password")]
+    public string Password { get; set; } = string.Empty;
 }

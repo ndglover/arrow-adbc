@@ -21,98 +21,102 @@ using Apache.Arrow.Adbc.Drivers.Snowflake;
 using FluentAssertions;
 using NUnit.Framework;
 
-namespace Apache.Arrow.Adbc.Tests.Drivers.Snowflake
+namespace Apache.Arrow.Adbc.Tests.Drivers.Snowflake;
+
+[TestFixture]
+public class SnowflakeDriverTests
 {
-    [TestFixture]
-    public class SnowflakeDriverTests
+    private SnowflakeDriver _driver = null!;
+
+    [SetUp]
+    public void SetUp()
     {
-        private SnowflakeDriver _driver = null!;
+        _driver = new SnowflakeDriver();
+    }
 
-        [SetUp]
-        public void SetUp()
+    [TearDown]
+    public void TearDown()
+    {
+        _driver?.Dispose();
+    }
+
+    [Test]
+    public void Open_WithValidParameters_ShouldReturnDatabase()
+    {
+        // Arrange
+        var parameters = new Dictionary<string, string>
         {
-            _driver = new SnowflakeDriver();
-        }
+            ["account"] = "testaccount",
+            ["user"] = "testuser",
+            ["password"] = "testpass"
+        };
 
-        [TearDown]
-        public void TearDown()
+        // Act
+        using var database = _driver.Open(parameters);
+
+        // Assert
+        database.Should().NotBeNull();
+        database.Should().BeOfType<SnowflakeDatabase>();
+    }
+
+    [Test]
+    public void Open_WithNullParameters_ShouldThrowArgumentNullException()
+    {
+        // Act & Assert
+        var exception = Assert.Throws<ArgumentNullException>(() => _driver.Open((IReadOnlyDictionary<string, string>)null!));
+        exception.ParamName.Should().Be("parameters");
+    }
+
+    [Test]
+    public void Open_WithInvalidParameters_ShouldThrowArgumentException()
+    {
+        // Arrange
+        var parameters = new Dictionary<string, string>
         {
-            _driver?.Dispose();
-        }
+            ["invalid"] = "parameter"
+        };
 
-        [Test]
-        public void Open_WithValidParameters_ShouldReturnDatabase()
+        // Act
+        var database = _driver.Open(parameters);
+
+        // Assert
+        var exception = Assert.Throws<ArgumentException>(() => database.Connect(null));
+        exception.Message.Should().Contain("account");
+    }
+
+    [Test]
+    public void Open_WithMissingRequiredParameters_ShouldThrowArgumentException()
+    {
+        // Arrange
+        var parameters = new Dictionary<string, string>
         {
-            // Arrange
-            var parameters = new Dictionary<string, string>
-            {
-                ["account"] = "testaccount",
-                ["user"] = "testuser",
-                ["password"] = "testpass"
-            };
+            ["user"] = "testuser",
+            ["password"] = "testpass"
+        };
 
-            // Act
-            using var database = _driver.Open(parameters);
+        // Act
+        var database = _driver.Open(parameters);
 
-            // Assert
-            database.Should().NotBeNull();
-            database.Should().BeOfType<SnowflakeDatabase>();
-        }
+        // Assert
+        var exception = Assert.Throws<ArgumentException>(() => database.Connect(null));
+        exception.Message.Should().Contain("account");
+    }
 
-        [Test]
-        public void Open_WithNullParameters_ShouldThrowArgumentNullException()
+    [Test]
+    public void Dispose_ShouldNotThrow()
+    {
+        // Act & Assert
+        Assert.DoesNotThrow(() => _driver.Dispose());
+    }
+
+    [Test]
+    public void Dispose_CalledMultipleTimes_ShouldNotThrow()
+    {
+        // Act & Assert
+        Assert.DoesNotThrow(() =>
         {
-            // Act & Assert
-            var exception = Assert.Throws<ArgumentNullException>(() => _driver.Open((IReadOnlyDictionary<string, string>)null!));
-            exception.ParamName.Should().Be("parameters");
-        }
-
-        [Test]
-        public void Open_WithInvalidParameters_ShouldThrowArgumentException()
-        {
-            // Arrange
-            var parameters = new Dictionary<string, string>
-            {
-                ["invalid"] = "parameter"
-            };
-
-            // Act & Assert
-            var exception = Assert.Throws<ArgumentException>(() => _driver.Open(parameters));
-            exception.Message.Should().Contain("Failed to parse connection parameters");
-        }
-
-        [Test]
-        public void Open_WithMissingRequiredParameters_ShouldThrowArgumentException()
-        {
-            // Arrange
-            var parameters = new Dictionary<string, string>
-            {
-                ["user"] = "testuser",
-                ["password"] = "testpass"
-                // Missing account
-            };
-
-            // Act & Assert
-            var exception = Assert.Throws<ArgumentException>(() => _driver.Open(parameters));
-            exception.Message.Should().Contain("Failed to parse connection parameters");
-        }
-
-        [Test]
-        public void Dispose_ShouldNotThrow()
-        {
-            // Act & Assert
-            Assert.DoesNotThrow(() => _driver.Dispose());
-        }
-
-        [Test]
-        public void Dispose_CalledMultipleTimes_ShouldNotThrow()
-        {
-            // Act & Assert
-            Assert.DoesNotThrow(() =>
-            {
-                _driver.Dispose();
-                _driver.Dispose();
-            });
-        }
+            _driver.Dispose();
+            _driver.Dispose();
+        });
     }
 }

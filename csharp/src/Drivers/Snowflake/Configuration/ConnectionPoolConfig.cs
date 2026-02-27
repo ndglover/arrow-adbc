@@ -18,27 +18,26 @@
 using System;
 using System.ComponentModel.DataAnnotations;
 
-namespace Apache.Arrow.Adbc.Drivers.Snowflake.Configuration
+namespace Apache.Arrow.Adbc.Drivers.Snowflake.Configuration;
+
+/// <summary>
+/// Represents connection pool configuration parameters.
+/// </summary>
+public class ConnectionPoolConfig
 {
     /// <summary>
-    /// Represents connection pool configuration parameters.
+    /// Gets or sets the maximum number of connections in the pool.
     /// </summary>
-    public class ConnectionPoolConfig
-    {
-        /// <summary>
-        /// Gets or sets the maximum number of connections in the pool.
-        /// </summary>
-        [Range(1, 1000)]
-        public int MaxPoolSize { get; set; } = 10;
+    [Range(1, 100)]
+    public int MaxPoolSize { get; set; } = 10;
 
-        /// <summary>
-        /// Gets or sets the maximum idle time before a connection is removed from the pool.
-        /// </summary>
-        public TimeSpan IdleTimeout { get; set; } = TimeSpan.FromMinutes(10);
+    /// <summary>
+    /// Gets or sets the maximum idle time before a connection is removed from the pool.
+    /// </summary>
+    public TimeSpan IdleTimeout { get; set; } = TimeSpan.FromMinutes(10);
 
-        /// <summary>
-        /// Gets or sets the maximum lifetime of a connection in the pool.
-        /// </summary>
-        public TimeSpan MaxConnectionLifetime { get; set; } = TimeSpan.FromHours(1);
-    }
+    /// <summary>
+    /// Gets or sets the maximum lifetime of a connection in the pool.
+    /// </summary>
+    public TimeSpan MaxConnectionLifetime { get; set; } = TimeSpan.FromHours(1);
 }

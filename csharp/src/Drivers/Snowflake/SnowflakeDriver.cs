@@ -20,23 +20,22 @@ using System.Collections.Generic;
 using System.Linq;
 using Apache.Arrow.Adbc.Drivers.Snowflake.Configuration;
 
-namespace Apache.Arrow.Adbc.Drivers.Snowflake
+namespace Apache.Arrow.Adbc.Drivers.Snowflake;
+
+/// <summary>
+/// Native C# Snowflake driver implementation for Apache Arrow ADBC.
+/// </summary>
+public sealed class SnowflakeDriver : AdbcDriver
 {
     /// <summary>
-    /// Native C# Snowflake driver implementation for Apache Arrow ADBC.
+    /// Opens a database connection using the provided parameters.
     /// </summary>
-    public sealed class SnowflakeDriver : AdbcDriver
+    /// <param name="parameters">The driver-specific parameters.</param>
+    /// <returns>An AdbcDatabase instance.</returns>
+    /// <exception cref="ArgumentException">Thrown when the parameters are invalid.</exception>
+    public override AdbcDatabase Open(IReadOnlyDictionary<string, string> parameters)
     {
-        /// <summary>
-        /// Opens a database connection using the provided parameters.
-        /// </summary>
-        /// <param name="parameters">The driver-specific parameters.</param>
-        /// <returns>An AdbcDatabase instance.</returns>
-        /// <exception cref="ArgumentException">Thrown when the parameters are invalid.</exception>
-        public override AdbcDatabase Open(IReadOnlyDictionary<string, string> parameters)
-        {
-            ArgumentNullException.ThrowIfNull(parameters);
-            return new SnowflakeDatabase(parameters);
-        }
+        ArgumentNullException.ThrowIfNull(parameters);
+        return new SnowflakeDatabase(parameters);
     }
 }

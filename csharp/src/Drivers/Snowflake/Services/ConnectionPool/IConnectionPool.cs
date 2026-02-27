@@ -20,39 +20,38 @@ using System.Threading;
 using System.Threading.Tasks;
 using Apache.Arrow.Adbc.Drivers.Snowflake.Configuration;
 
-namespace Apache.Arrow.Adbc.Drivers.Snowflake.Services.ConnectionPool
+namespace Apache.Arrow.Adbc.Drivers.Snowflake.Services.ConnectionPool;
+
+/// <summary>
+/// Manages connection pooling for Snowflake connections.
+/// </summary>
+public interface IConnectionPool : IDisposable
 {
     /// <summary>
-    /// Manages connection pooling for Snowflake connections.
+    /// Acquires a connection from the pool.
     /// </summary>
-    public interface IConnectionPool : IDisposable
-    {
-        /// <summary>
-        /// Acquires a connection from the pool.
-        /// </summary>
-        /// <param name="config">The connection configuration.</param>
-        /// <param name="cancellationToken">The cancellation token.</param>
-        /// <returns>A pooled connection.</returns>
-        Task<IPooledConnection> AcquireConnectionAsync(
-            ConnectionConfig config,
-            CancellationToken cancellationToken = default);
+    /// <param name="config">The connection configuration.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>A pooled connection.</returns>
+    Task<IPooledConnection> AcquireConnectionAsync(
+        ConnectionConfig config,
+        CancellationToken cancellationToken = default);
 
-        /// <summary>
-        /// Releases a connection back to the pool.
-        /// </summary>
-        /// <param name="connection">The connection to release.</param>
-        void ReleaseConnection(IPooledConnection connection);
+    /// <summary>
+    /// Releases a connection back to the pool.
+    /// </summary>
+    /// <param name="connection">The connection to release.</param>
+    void ReleaseConnection(IPooledConnection connection);
 
-        /// <summary>
-        /// Invalidates a connection and removes it from the pool.
-        /// </summary>
-        /// <param name="connection">The connection to invalidate.</param>
-        void InvalidateConnection(IPooledConnection connection);
+    /// <summary>
+    /// Invalidates a connection and removes it from the pool.
+    /// </summary>
+    /// <param name="connection">The connection to invalidate.</param>
+    void InvalidateConnection(IPooledConnection connection);
 
-        /// <summary>
-        /// Gets statistics about the connection pool.
-        /// </summary>
-        /// <returns>Pool statistics.</returns>
-        Task<PoolStatistics> GetStatisticsAsync();
-    }
+    /// <summary>
+    /// Gets statistics about the connection pool.
+    /// </summary>
+    /// <returns>Pool statistics.</returns>
+    Task<PoolStatistics> GetStatisticsAsync();
 }

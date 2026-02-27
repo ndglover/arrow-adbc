@@ -21,101 +21,100 @@ using System.Threading.Tasks;
 using Apache.Arrow.Adbc.Drivers.Snowflake.Configuration;
 using Apache.Arrow.Adbc.Drivers.Snowflake.Services.Authentication;
 
-namespace Apache.Arrow.Adbc.Drivers.Snowflake.Services.ConnectionPool
+namespace Apache.Arrow.Adbc.Drivers.Snowflake.Services.ConnectionPool;
+
+/// <summary>
+/// Represents a pooled Snowflake connection.
+/// </summary>
+public class PooledConnection : IPooledConnection
 {
+    private bool _disposed;
+    private DateTimeOffset _lastUsedAt;
+
     /// <summary>
-    /// Represents a pooled Snowflake connection.
+    /// Initializes a new instance of the <see cref="PooledConnection"/> class.
     /// </summary>
-    public class PooledConnection : IPooledConnection
+    /// <param name="connectionId">The connection ID.</param>
+    /// <param name="authToken">The authentication token.</param>
+    /// <param name="config">The connection configuration.</param>
+    public PooledConnection(
+        string connectionId,
+        AuthenticationToken authToken,
+        ConnectionConfig config)
     {
-        private bool _disposed;
-        private DateTimeOffset _lastUsedAt;
+        ConnectionId = connectionId ?? throw new ArgumentNullException(nameof(connectionId));
+        AuthToken = authToken ?? throw new ArgumentNullException(nameof(authToken));
+        Config = config ?? throw new ArgumentNullException(nameof(config));
+        CreatedAt = DateTimeOffset.UtcNow;
+        _lastUsedAt = CreatedAt;
+    }
 
-        /// <summary>
-        /// Initializes a new instance of the <see cref="PooledConnection"/> class.
-        /// </summary>
-        /// <param name="connectionId">The connection ID.</param>
-        /// <param name="authToken">The authentication token.</param>
-        /// <param name="config">The connection configuration.</param>
-        public PooledConnection(
-            string connectionId,
-            AuthenticationToken authToken,
-            ConnectionConfig config)
-        {
-            ConnectionId = connectionId ?? throw new ArgumentNullException(nameof(connectionId));
-            AuthToken = authToken ?? throw new ArgumentNullException(nameof(authToken));
-            Config = config ?? throw new ArgumentNullException(nameof(config));
-            CreatedAt = DateTimeOffset.UtcNow;
-            _lastUsedAt = CreatedAt;
-        }
+    /// <inheritdoc/>
+    public string ConnectionId { get; }
 
-        /// <inheritdoc/>
-        public string ConnectionId { get; }
+    /// <inheritdoc/>
+    public AuthenticationToken AuthToken { get; }
 
-        /// <inheritdoc/>
-        public AuthenticationToken AuthToken { get; }
+    /// <inheritdoc/>
+    public ConnectionConfig Config { get; }
 
-        /// <inheritdoc/>
-        public ConnectionConfig Config { get; }
+    /// <inheritdoc/>
+    public DateTimeOffset CreatedAt { get; }
 
-        /// <inheritdoc/>
-        public DateTimeOffset CreatedAt { get; }
+    /// <inheritdoc/>
+    public DateTimeOffset LastUsedAt
+    {
+        get => _lastUsedAt;
+        private set => _lastUsedAt = value;
+    }
 
-        /// <inheritdoc/>
-        public DateTimeOffset LastUsedAt
-        {
-            get => _lastUsedAt;
-            private set => _lastUsedAt = value;
-        }
-
-        /// <inheritdoc/>
-        public bool IsValid
-        {
-            get
-            {
-                if (_disposed)
-                    return false;
-
-                // Check if token is expired
-                if (AuthToken.IsExpired)
-                    return false;
-
-                // Check if connection has exceeded its lifetime
-                var connectionAge = DateTimeOffset.UtcNow - CreatedAt;
-                if (connectionAge > Config.PoolConfig.MaxConnectionLifetime)
-                    return false;
-
-                return true;
-            }
-        }
-
-        /// <inheritdoc/>
-        public async Task<bool> ValidateAsync(CancellationToken cancellationToken = default)
-        {
-            if (!IsValid)
-                return false;
-
-            try
-            {
-                LastUsedAt = DateTimeOffset.UtcNow;
-                return true;
-            }
-            catch
-            {
-                return false;
-            }
-        }
-
-        /// <summary>
-        /// Disposes the connection.
-        /// </summary>
-        public void Dispose()
+    /// <inheritdoc/>
+    public bool IsValid
+    {
+        get
         {
             if (_disposed)
-                return;
+                return false;
 
-            _disposed = true;
-            GC.SuppressFinalize(this);
+            // Check if token is expired
+            if (AuthToken.IsExpired)
+                return false;
+
+            // Check if connection has exceeded its lifetime
+            var connectionAge = DateTimeOffset.UtcNow - CreatedAt;
+            if (connectionAge > Config.PoolConfig.MaxConnectionLifetime)
+                return false;
+
+            return true;
         }
+    }
+
+    /// <inheritdoc/>
+    public async Task<bool> ValidateAsync(CancellationToken cancellationToken = default)
+    {
+        if (!IsValid)
+            return false;
+
+        try
+        {
+            LastUsedAt = DateTimeOffset.UtcNow;
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Disposes the connection.
+    /// </summary>
+    public void Dispose()
+    {
+        if (_disposed)
+            return;
+
+        _disposed = true;
+        GC.SuppressFinalize(this);
     }
 }

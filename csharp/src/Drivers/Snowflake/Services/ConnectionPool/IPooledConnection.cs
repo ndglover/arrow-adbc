@@ -21,48 +21,47 @@ using System.Threading.Tasks;
 using Apache.Arrow.Adbc.Drivers.Snowflake.Configuration;
 using Apache.Arrow.Adbc.Drivers.Snowflake.Services.Authentication;
 
-namespace Apache.Arrow.Adbc.Drivers.Snowflake.Services.ConnectionPool
+namespace Apache.Arrow.Adbc.Drivers.Snowflake.Services.ConnectionPool;
+
+/// <summary>
+/// Represents a pooled connection.
+/// </summary>
+public interface IPooledConnection : IDisposable
 {
     /// <summary>
-    /// Represents a pooled connection.
+    /// Gets the connection ID.
     /// </summary>
-    public interface IPooledConnection : IDisposable
-    {
-        /// <summary>
-        /// Gets the connection ID.
-        /// </summary>
-        string ConnectionId { get; }
+    string ConnectionId { get; }
 
-        /// <summary>
-        /// Gets the authentication token for this connection.
-        /// </summary>
-        AuthenticationToken AuthToken { get; }
+    /// <summary>
+    /// Gets the authentication token for this connection.
+    /// </summary>
+    AuthenticationToken AuthToken { get; }
 
-        /// <summary>
-        /// Gets the connection configuration.
-        /// </summary>
-        ConnectionConfig Config { get; }
+    /// <summary>
+    /// Gets the connection configuration.
+    /// </summary>
+    ConnectionConfig Config { get; }
 
-        /// <summary>
-        /// Gets the time when the connection was created.
-        /// </summary>
-        DateTimeOffset CreatedAt { get; }
+    /// <summary>
+    /// Gets the time when the connection was created.
+    /// </summary>
+    DateTimeOffset CreatedAt { get; }
 
-        /// <summary>
-        /// Gets the time when the connection was last used.
-        /// </summary>
-        DateTimeOffset LastUsedAt { get; }
+    /// <summary>
+    /// Gets the time when the connection was last used.
+    /// </summary>
+    DateTimeOffset LastUsedAt { get; }
 
-        /// <summary>
-        /// Gets a value indicating whether the connection is valid.
-        /// </summary>
-        bool IsValid { get; }
+    /// <summary>
+    /// Gets a value indicating whether the connection is valid.
+    /// </summary>
+    bool IsValid { get; }
 
-        /// <summary>
-        /// Validates the connection health.
-        /// </summary>
-        /// <param name="cancellationToken">The cancellation token.</param>
-        /// <returns>True if the connection is healthy, false otherwise.</returns>
-        Task<bool> ValidateAsync(CancellationToken cancellationToken = default);
-    }
+    /// <summary>
+    /// Validates the connection health.
+    /// </summary>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>True if the connection is healthy, false otherwise.</returns>
+    Task<bool> ValidateAsync(CancellationToken cancellationToken = default);
 }

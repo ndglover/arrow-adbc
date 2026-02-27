@@ -20,25 +20,24 @@ using System.Threading;
 using System.Threading.Tasks;
 using Apache.Arrow.Adbc.Drivers.Snowflake.Configuration;
 
-namespace Apache.Arrow.Adbc.Drivers.Snowflake.Services.Authentication
+namespace Apache.Arrow.Adbc.Drivers.Snowflake.Services.Authentication;
+
+/// <summary>
+/// Provides Single Sign-On (SSO) authentication for Snowflake.
+/// </summary>
+public interface ISsoAuthenticator
 {
     /// <summary>
-    /// Provides Single Sign-On (SSO) authentication for Snowflake.
+    /// Authenticates using SSO with external browser.
     /// </summary>
-    public interface ISsoAuthenticator
-    {
-        /// <summary>
-        /// Authenticates using SSO with external browser.
-        /// </summary>
-        /// <param name="account">The Snowflake account identifier.</param>
-        /// <param name="user">The username.</param>
-        /// <param name="ssoProperties">Additional SSO properties.</param>
-        /// <param name="cancellationToken">The cancellation token.</param>
-        /// <returns>An authentication token.</returns>
-        Task<AuthenticationToken> AuthenticateAsync(
-            string account,
-            string user,
-            Dictionary<string, string>? ssoProperties = null,
-            CancellationToken cancellationToken = default);
-    }
+    /// <param name="account">The Snowflake account identifier.</param>
+    /// <param name="user">The username.</param>
+    /// <param name="ssoProperties">Additional SSO properties.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>An authentication token.</returns>
+    Task<AuthenticationToken> AuthenticateAsync(
+        string account,
+        string user,
+        Dictionary<string, string>? ssoProperties = null,
+        CancellationToken cancellationToken = default);
 }
