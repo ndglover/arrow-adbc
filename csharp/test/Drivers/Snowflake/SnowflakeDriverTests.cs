@@ -34,10 +34,47 @@ public class SnowflakeDriverTests
         _driver = new SnowflakeDriver();
     }
 
+    [Test]
+    public void OpenAsync_WithValidParameters_ShouldReturnDatabase()
+    {
+        // Arrange
+        var parameters = new Dictionary<string, string>
+        {
+            ["account"] = "testaccount",
+            ["user"] = "testuser",
+            ["password"] = "testpass"
+        };
+
+        // Act
+        using SnowflakeDatabase database = (SnowflakeDatabase)_driver.Open(parameters);
+        using var connection = database.ConnectAsync(new Dictionary<string, string>()).GetAwaiter().GetResult();
+
+        // Assert
+        connection.Should().NotBeNull();
+        connection.Should().BeOfType<SnowflakeConnection>();
+    }
+
     [TearDown]
     public void TearDown()
     {
         _driver?.Dispose();
+    }
+
+    [Test]
+    public void OpenAsync_WithInvalidParameters_ShouldThrowArgumentException()
+    {
+        // Arrange
+        var parameters = new Dictionary<string, string>
+        {
+            ["invalid"] = "parameter"
+        };
+
+        // Act
+        using SnowflakeDatabase database = (SnowflakeDatabase)_driver.Open(parameters);
+
+        // Assert
+        var ex = Assert.Throws<ArgumentException>(() => database.ConnectAsync(null!).GetAwaiter().GetResult());
+        ex.Message.Should().Contain("account");
     }
 
     [Test]

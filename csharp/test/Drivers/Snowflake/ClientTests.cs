@@ -18,6 +18,7 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using Apache.Arrow.Adbc.Drivers.Snowflake;
 using Apache.Arrow.Ipc;
 using Xunit;
 using Xunit.Abstractions;
@@ -74,8 +75,8 @@ public class ClientTests : IDisposable
     {
         var driver = SnowflakeTestingUtils.GetSnowflakeAdbcDriver(_testConfiguration, out var parameters);
         
-        using var database = driver.Open(parameters);
-        using var connection = database.Connect(new Dictionary<string, string>());
+        using SnowflakeDatabase database = (SnowflakeDatabase)driver.Open(parameters);
+        using var connection = await database.ConnectAsync(new Dictionary<string, string>());
         using var statement = connection.CreateStatement();
         
         statement.SqlQuery = _testConfiguration.Query ?? "SELECT 1 as TESTCOL";
@@ -90,6 +91,30 @@ public class ClientTests : IDisposable
         Assert.NotNull(batch);
         Assert.True(batch.Length > 0);
         
+        _output.WriteLine($"Query returned {batch.Length} rows with {batch.ColumnCount} columns");
+    }
+
+    [SkippableFact]
+    public async Task CanClientExecuteQuery_WithAsyncConnect()
+    {
+        var driver = SnowflakeTestingUtils.GetSnowflakeAdbcDriver(_testConfiguration, out var parameters);
+
+        using SnowflakeDatabase database = (SnowflakeDatabase)driver.Open(parameters);
+        using var connection = await database.ConnectAsync(new Dictionary<string, string>());
+        using var statement = connection.CreateStatement();
+
+        statement.SqlQuery = _testConfiguration.Query ?? "SELECT 1 as TESTCOL";
+        var result = await statement.ExecuteQueryAsync();
+
+        Assert.NotNull(result);
+        Assert.NotNull(result.Stream);
+
+        using var stream = result.Stream;
+        var batch = await stream.ReadNextRecordBatchAsync();
+
+        Assert.NotNull(batch);
+        Assert.True(batch.Length > 0);
+
         _output.WriteLine($"Query returned {batch.Length} rows with {batch.ColumnCount} columns");
     }
 
@@ -110,6 +135,26 @@ public class ClientTests : IDisposable
         // ExecuteUpdate returns -1 for SELECT statements
         Assert.True(result.AffectedRows >= -1);
         
+        _output.WriteLine($"Update affected {result.AffectedRows} rows");
+    }
+
+    [SkippableFact]
+    public async Task CanClientExecuteUpdate_WithAsyncConnect()
+    {
+        var driver = SnowflakeTestingUtils.GetSnowflakeAdbcDriver(_testConfiguration, out var parameters);
+
+        using SnowflakeDatabase database = (SnowflakeDatabase)driver.Open(parameters);
+        using var connection = await database.ConnectAsync(new Dictionary<string, string>());
+        using var statement = connection.CreateStatement();
+
+        // Simple query that doesn't modify data
+        statement.SqlQuery = "SELECT 1";
+        var result = statement.ExecuteUpdate();
+
+        Assert.NotNull(result);
+        // ExecuteUpdate returns -1 for SELECT statements
+        Assert.True(result.AffectedRows >= -1);
+
         _output.WriteLine($"Update affected {result.AffectedRows} rows");
     }
 
@@ -140,6 +185,34 @@ public class ClientTests : IDisposable
             _output.WriteLine($"  {field.Name}: {field.DataType}");
         }
     }
+
+    [SkippableFact]
+    public async Task CanClientGetSchema_WithAsyncConnect()
+    {
+        var driver = SnowflakeTestingUtils.GetSnowflakeAdbcDriver(_testConfiguration, out var parameters);
+
+        using SnowflakeDatabase database = (SnowflakeDatabase)driver.Open(parameters);
+        using var connection = await database.ConnectAsync(new Dictionary<string, string>());
+        using var statement = connection.CreateStatement();
+
+        statement.SqlQuery = _testConfiguration.Query ?? "SELECT 1 as TESTCOL";
+        var result = statement.ExecuteQuery();
+
+        Assert.NotNull(result);
+        Assert.NotNull(result.Stream);
+
+        using var stream = result.Stream;
+        var schema = stream.Schema;
+
+        Assert.NotNull(schema);
+        Assert.True(schema.FieldsList.Count > 0);
+
+        _output.WriteLine($"Schema has {schema.FieldsList.Count} fields");
+        foreach (var field in schema.FieldsList)
+        {
+            _output.WriteLine($"  {field.Name}: {field.DataType}");
+        }
+        }
 
     public void Dispose()
     {

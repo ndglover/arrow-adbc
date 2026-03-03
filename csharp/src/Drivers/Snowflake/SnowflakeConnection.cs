@@ -18,12 +18,15 @@
 using System;
 using System.Collections.Generic;
 using System.Net.Http;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using Apache.Arrow.Ipc;
 using Apache.Arrow.Adbc.Drivers.Snowflake.Configuration;
 using Apache.Arrow.Adbc.Drivers.Snowflake.Services;
 using Apache.Arrow.Adbc.Drivers.Snowflake.Services.ConnectionPool;
 using Apache.Arrow.Adbc.Drivers.Snowflake.Services.Transport;
 using Apache.Arrow.Adbc.Drivers.Snowflake.Services.TypeConversion;
+using System.Threading.Tasks;
 
 namespace Apache.Arrow.Adbc.Drivers.Snowflake;
 
@@ -39,31 +42,47 @@ public sealed class SnowflakeConnection : AdbcConnection
     private IQueryExecutor? _queryExecutor;
     private PreparedStatementManager? _preparedStatementManager;
     private bool _disposed;
+    private readonly ILogger<SnowflakeConnection> _logger;    
+        
+    private SnowflakeConnection(ConnectionConfig config, IConnectionPoolManager connectionPool, Dictionary<string,string> options,
+        IPooledConnection pooledConnection, IQueryExecutor queryExecutor, PreparedStatementManager preparedStatementManager,
+        ILogger<SnowflakeConnection> logger)
+    {
+        _config = config;
+        _connectionPool = connectionPool;
+        _options = options;
+        _pooledConnection = pooledConnection;
+        _queryExecutor = queryExecutor;
+        _preparedStatementManager = preparedStatementManager;
+        _logger = logger;
+    }
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="SnowflakeConnection"/> class.
+    /// Asynchronously creates and initializes a new SnowflakeConnection.
     /// </summary>
-    /// <param name="config">The connection configuration.</param>
-    /// <param name="connectionPool">The connection pool.</param>
-    public SnowflakeConnection(ConnectionConfig config, IConnectionPoolManager connectionPool)
+    public static async Task<SnowflakeConnection> CreateAsync(ConnectionConfig config, HttpClient httpClient, IConnectionPoolManager connectionPool, ILogger<SnowflakeConnection>? logger = null)
     {
         ArgumentNullException.ThrowIfNull(config);
         ArgumentNullException.ThrowIfNull(connectionPool);
+        var log = logger ?? NullLogger<SnowflakeConnection>.Instance;
 
-        _config = config;
-        _connectionPool = connectionPool;
-        _options = new Dictionary<string, string>();
+        var options = new Dictionary<string, string>();
 
-        //Not happy about this sync-over-async, discussed options with team
-        _pooledConnection = _connectionPool.AcquireConnectionAsync(_config).GetAwaiter().GetResult();
-        
-        // Initialize services
-        var httpClient = new HttpClient();
-        var apiClient = new RestApiClient(httpClient, _config.EnableCompression);
+        log.LogDebug("Acquiring pooled connection for user {User} account {Account}", config.User, config.Account);
+        var pooledConnection = await connectionPool.AcquireConnectionAsync(config).ConfigureAwait(false);
+        if (pooledConnection is null)
+        {
+            throw new InvalidOperationException("Failed to acquire pooled connection");
+        }
+        log.LogInformation("Acquired pooled connection {ConnectionId}", pooledConnection.ConnectionId);
+                
+        var apiClient = new RestApiClient(httpClient, config.EnableCompression);
         var typeConverter = new TypeConverter();
-        
-        _queryExecutor = new QueryExecutor(apiClient, typeConverter, _config.Account);
-        _preparedStatementManager = new PreparedStatementManager(apiClient, typeConverter, _config.Account);
+
+        var queryExecutor = new QueryExecutor(apiClient, typeConverter, config.Account);
+        var preparedStatementManager = new PreparedStatementManager(apiClient, typeConverter, config.Account);
+
+        return new SnowflakeConnection(config, connectionPool, options, pooledConnection, queryExecutor, preparedStatementManager, log);
     }
 
     /// <summary>AdbcDatabaseAdbcDatabase
@@ -167,7 +186,7 @@ public sealed class SnowflakeConnection : AdbcConnection
                 _connectionPool.ReleaseConnection(_pooledConnection);
                 _pooledConnection = null;
             }
-            
+            _logger.LogDebug("Disposing SnowflakeConnection for user {User}", _config.User);
             _disposed = true;
         }
         base.Dispose();

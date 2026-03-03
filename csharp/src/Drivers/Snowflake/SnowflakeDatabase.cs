@@ -18,7 +18,9 @@
 using System;
 using System.Collections.Generic;
 using System.Net.Http;
+using System.Threading.Tasks;
 using Apache.Arrow.Adbc.Drivers.Snowflake.Configuration;
+using Microsoft.Extensions.Logging;
 using Apache.Arrow.Adbc.Drivers.Snowflake.Services.Authentication;
 using Apache.Arrow.Adbc.Drivers.Snowflake.Services.ConnectionPool;
 
@@ -31,21 +33,24 @@ public sealed class SnowflakeDatabase : AdbcDatabase
 {
     private readonly IReadOnlyDictionary<string, string>? _parameters;
     private readonly IConnectionPoolManager _connectionPool;
+    private readonly HttpClient _httpClient;
+    private readonly ILoggerFactory? _loggerFactory;
     private bool _disposed;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="SnowflakeDatabase"/> class.
     /// </summary>
     /// <param name="parameters">The ADBC connection parameters.</param>
-    public SnowflakeDatabase(IReadOnlyDictionary<string, string>? parameters = null, HttpClient? httpClient = null)
+    public SnowflakeDatabase(IReadOnlyDictionary<string, string>? parameters = null, HttpClient? httpClient = null, ILoggerFactory? loggerFactory = null)
     {
         _parameters = parameters;
-        
-        var client  = httpClient ?? new HttpClient();
-        var basicAuth = new BasicAuthenticator(client);
-        var keyPairAuth = new KeyPairAuthenticator(client);
-        var oauthAuth = new OAuthAuthenticator(client);
-        var ssoAuth = new SsoAuthenticator(client);
+        _loggerFactory = loggerFactory;
+
+        _httpClient  = httpClient ?? new HttpClient();
+        var basicAuth = new BasicAuthenticator(_httpClient);
+        var keyPairAuth = new KeyPairAuthenticator(_httpClient);
+        var oauthAuth = new OAuthAuthenticator(_httpClient);
+        var ssoAuth = new SsoAuthenticator(_httpClient);
 
         var authService = new AuthenticationService(basicAuth, keyPairAuth, oauthAuth, ssoAuth);
         _connectionPool = new ConnectionPoolManager(authService);
@@ -58,10 +63,20 @@ public sealed class SnowflakeDatabase : AdbcDatabase
     /// <returns>An AdbcConnection instance.</returns>
     public override AdbcConnection Connect(IReadOnlyDictionary<string, string>? parameters)
     {
+        ObjectDisposedException.ThrowIf(_disposed, this);        
+        return ConnectAsync(parameters).GetAwaiter().GetResult();
+    }
+
+    /// <summary>
+    /// Asynchronously create a new connection to the Snowflake database.
+    /// </summary>
+    public async Task<AdbcConnection> ConnectAsync(IReadOnlyDictionary<string, string>? parameters)
+    {
         ObjectDisposedException.ThrowIf(_disposed, this);
-        
+
         var config = ConnectionStringParser.ParseParameters(parameters, _parameters);
-        return new SnowflakeConnection(config, _connectionPool);
+        var logger = _loggerFactory?.CreateLogger<SnowflakeConnection>();
+        return await SnowflakeConnection.CreateAsync(config, _httpClient, _connectionPool, logger).ConfigureAwait(false);
     }
     
 
