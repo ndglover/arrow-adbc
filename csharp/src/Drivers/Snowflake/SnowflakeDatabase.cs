@@ -37,16 +37,15 @@ public sealed class SnowflakeDatabase : AdbcDatabase
     /// Initializes a new instance of the <see cref="SnowflakeDatabase"/> class.
     /// </summary>
     /// <param name="parameters">The ADBC connection parameters.</param>
-    public SnowflakeDatabase(IReadOnlyDictionary<string, string>? parameters = null)
+    public SnowflakeDatabase(IReadOnlyDictionary<string, string>? parameters = null, HttpClient? httpClient = null)
     {
         _parameters = parameters;
-
-        // Initialize services
-        var httpClient = new HttpClient();
-        var basicAuth = new BasicAuthenticator(httpClient);
-        var keyPairAuth = new KeyPairAuthenticator(httpClient);
-        var oauthAuth = new OAuthAuthenticator(httpClient);
-        var ssoAuth = new SsoAuthenticator(httpClient);
+        
+        var client  = httpClient ?? new HttpClient();
+        var basicAuth = new BasicAuthenticator(client);
+        var keyPairAuth = new KeyPairAuthenticator(client);
+        var oauthAuth = new OAuthAuthenticator(client);
+        var ssoAuth = new SsoAuthenticator(client);
 
         var authService = new AuthenticationService(basicAuth, keyPairAuth, oauthAuth, ssoAuth);
         _connectionPool = new ConnectionPoolManager(authService);
