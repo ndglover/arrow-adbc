@@ -40,8 +40,8 @@ public class SnowflakeDriverTests
         // Arrange
         var parameters = new Dictionary<string, string>
         {
-            ["account"] = "testaccount",
-            ["user"] = "testuser",
+            ["adbc.snowflake.sql.account"] = "testaccount",
+            ["username"] = "testuser",
             ["password"] = "testpass"
         };
 
@@ -83,8 +83,8 @@ public class SnowflakeDriverTests
         // Arrange
         var parameters = new Dictionary<string, string>
         {
-            ["account"] = "testaccount",
-            ["user"] = "testuser",
+            ["adbc.snowflake.sql.account"] = "testaccount",
+            ["username"] = "testuser",
             ["password"] = "testpass"
         };
 

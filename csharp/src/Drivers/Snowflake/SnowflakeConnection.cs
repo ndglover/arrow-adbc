@@ -60,11 +60,11 @@ public sealed class SnowflakeConnection : AdbcConnection
     /// <summary>
     /// Asynchronously creates and initializes a new SnowflakeConnection.
     /// </summary>
-    public static async Task<SnowflakeConnection> CreateAsync(ConnectionConfig config, HttpClient httpClient, IConnectionPoolManager connectionPool, ILogger<SnowflakeConnection>? logger = null)
+    public static async Task<SnowflakeConnection> CreateAsync(ConnectionConfig config, HttpClient httpClient, IConnectionPoolManager connectionPool, ILoggerFactory? loggerFactory = null)
     {
         ArgumentNullException.ThrowIfNull(config);
         ArgumentNullException.ThrowIfNull(connectionPool);
-        var log = logger ?? NullLogger<SnowflakeConnection>.Instance;
+        var log = loggerFactory.CreateLogger<SnowflakeConnection>();
 
         var options = new Dictionary<string, string>();
 
@@ -79,11 +79,12 @@ public sealed class SnowflakeConnection : AdbcConnection
         var apiClient = new RestApiClient(httpClient, config.EnableCompression);
         var typeConverter = new TypeConverter();
 
-        var queryExecutor = new QueryExecutor(apiClient, typeConverter, config.Account);
+        
+        var queryExecutor = new QueryExecutor(apiClient, typeConverter, config.Account, loggerFactory.CreateLogger<QueryExecutor>());
         var preparedStatementManager = new PreparedStatementManager(apiClient, typeConverter, config.Account);
 
         return new SnowflakeConnection(config, connectionPool, options, pooledConnection, queryExecutor, preparedStatementManager, log);
-    }
+    }    
 
     /// <summary>AdbcDatabaseAdbcDatabase
     /// Creates a new statement for executing queries.

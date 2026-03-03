@@ -23,6 +23,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Apache.Arrow.Adbc.Drivers.Snowflake.Services.Transport;
 using Apache.Arrow.Adbc.Drivers.Snowflake.Services.TypeConversion;
+using Microsoft.Extensions.Logging;
 
 namespace Apache.Arrow.Adbc.Drivers.Snowflake.Services;
 
@@ -34,6 +35,7 @@ public class QueryExecutor : IQueryExecutor
     private readonly IRestApiClient _apiClient;
     private readonly ITypeConverter _typeConverter;
     private readonly string _accountUrl;
+    private readonly ILogger<QueryExecutor> _logger;
     private const string QueryEndpoint = "/queries/v1/query-request";
     private const string CancelEndpoint = "/queries/{0}/cancel";
 
@@ -46,10 +48,12 @@ public class QueryExecutor : IQueryExecutor
     public QueryExecutor(
         IRestApiClient apiClient,
         ITypeConverter typeConverter,
-        string account)
+        string account,
+        ILogger<QueryExecutor> logger)
     {
         _apiClient = apiClient ?? throw new ArgumentNullException(nameof(apiClient));
         _typeConverter = typeConverter ?? throw new ArgumentNullException(nameof(typeConverter));
+        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         
         if (string.IsNullOrEmpty(account))
             throw new ArgumentException("Account cannot be null or empty.", nameof(account));
@@ -131,10 +135,10 @@ public class QueryExecutor : IQueryExecutor
             var data = response.Data;
 
             // Debug: Check what format we received
-            Console.WriteLine($"DEBUG: QueryResultFormat = {data.QueryResultFormat}");
-            Console.WriteLine($"DEBUG: Has RowSetBase64 = {!string.IsNullOrEmpty(data.RowSetBase64)}");
-            Console.WriteLine($"DEBUG: Has RowSet = {data.RowSet != null}");
-            Console.WriteLine($"DEBUG: Has RowType = {data.RowType != null}");
+            _logger.LogDebug("QueryResultFormat = {QueryResultFormat}", data.QueryResultFormat);
+            _logger.LogDebug("Has RowSetBase64 = {HasRowSetBase64}", !string.IsNullOrEmpty(data.RowSetBase64));
+            _logger.LogDebug("Has RowSet = {HasRowSet}", data.RowSet != null);
+            _logger.LogDebug("Has RowType = {HasRowType}", data.RowType != null);
             
             // Debug: Check if DOTNET_QUERY_RESULT_FORMAT parameter is in the response
             if (data.Parameters != null)
@@ -142,37 +146,26 @@ public class QueryExecutor : IQueryExecutor
                 var arrowParam = data.Parameters.FirstOrDefault(p => p.Name?.Contains("QUERY_RESULT_FORMAT") == true);
                 if (arrowParam != null)
                 {
-                    Console.WriteLine($"DEBUG: Found parameter {arrowParam.Name} = {arrowParam.Value}");
+                    _logger.LogDebug("Found parameter {ParamName} = {ParamValue}", arrowParam.Name, arrowParam.Value);
                 }
                 else
                 {
-                    Console.WriteLine($"DEBUG: DOTNET_QUERY_RESULT_FORMAT parameter not found in response");
-                    Console.WriteLine($"DEBUG: Available parameters: {string.Join(", ", data.Parameters.Take(5).Select(p => p.Name))}...");
+                    _logger.LogDebug("DOTNET_QUERY_RESULT_FORMAT parameter not found in response");
+                    _logger.LogDebug("Available parameters: {Params}...", string.Join(", ", data.Parameters.Take(5).Select(p => p.Name)));
                 }
             }
 
             // Check if we have Arrow format data
             if (!string.IsNullOrEmpty(data.RowSetBase64))
             {
-                // Decode base64 Arrow data
+                // Decode base64 Arrow data and stream batches to the caller instead of buffering them all in memory.
                 var arrowBytes = Convert.FromBase64String(data.RowSetBase64);
-                using var stream = new System.IO.MemoryStream(arrowBytes);
-                using var arrowReader = new Apache.Arrow.Ipc.ArrowStreamReader(stream);
-                
-                // Read the schema and all record batches
+                var stream = new System.IO.MemoryStream(arrowBytes);
+                var arrowReader = new Apache.Arrow.Ipc.ArrowStreamReader(stream);
+
                 var schema = arrowReader.Schema;
-                var recordBatches = new List<Apache.Arrow.RecordBatch>();
-                
-                while (true)
-                {
-                    var batch = arrowReader.ReadNextRecordBatch();
-                    if (batch == null)
-                        break;
-                    recordBatches.Add(batch);
-                }
-                
-                var arrayStream = new SimpleArrowArrayStream(schema, recordBatches);
-                
+                var arrayStream = new ArrowStreamArrayStream(stream, arrowReader);
+
                 return new QueryResult
                 {
                     StatementHandle = data.QueryId ?? string.Empty,
@@ -184,21 +177,23 @@ public class QueryExecutor : IQueryExecutor
                 };
             }
             
-            // Check if we have JSON format data (rowset and rowtype)
+            // JSON (rowset/rowtype) format is not supported by this executor.
+            // Only Arrow-serialized results (rowsetBase64) are handled.
             if (data.RowType != null && data.RowSet != null)
             {
-                // Convert Snowflake rowset to Arrow format
-                var schema = ConvertRowTypeToArrowSchema(data.RowType);
-                var arrayStream = ConvertRowSetToArrowStream(schema, data.RowSet);
-
                 return new QueryResult
                 {
                     StatementHandle = data.QueryId ?? string.Empty,
-                    Status = QueryStatus.Success,
-                    Schema = schema,
-                    ResultStream = arrayStream,
-                    RowCount = data.Returned ?? 0,
-                    ExecutionTime = stopwatch.Elapsed
+                    Status = QueryStatus.Failed,
+                    ExecutionTime = stopwatch.Elapsed,
+                    Errors = new System.Collections.Generic.List<QueryError>
+                    {
+                        new QueryError
+                        {
+                            ErrorCode = "UNSUPPORTED_FORMAT",
+                            Message = "JSON rowset/rowtype format is not supported. Request results in Arrow format (set DOTNET_QUERY_RESULT_FORMAT=ARROW)."
+                        }
+                    }
                 };
             }
 
@@ -364,6 +359,46 @@ public class QueryExecutor : IQueryExecutor
             foreach (var batch in _batches)
             {
                 batch?.Dispose();
+            }
+        }
+    }
+
+    // Streams Arrow batches from an ArrowStreamReader without buffering all batches in memory.
+    private class ArrowStreamArrayStream : Apache.Arrow.Ipc.IArrowArrayStream
+    {
+        private readonly System.IO.Stream _baseStream;
+        private readonly Apache.Arrow.Ipc.ArrowStreamReader _reader;
+
+        public ArrowStreamArrayStream(System.IO.Stream baseStream, Apache.Arrow.Ipc.ArrowStreamReader reader)
+        {
+            _baseStream = baseStream ?? throw new ArgumentNullException(nameof(baseStream));
+            _reader = reader ?? throw new ArgumentNullException(nameof(reader));
+        }
+
+        public Apache.Arrow.Schema Schema => _reader.Schema;
+
+        public ValueTask<Apache.Arrow.RecordBatch?> ReadNextRecordBatchAsync(CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                var batch = _reader.ReadNextRecordBatch();
+                return new ValueTask<Apache.Arrow.RecordBatch?>(batch);
+            }
+            catch
+            {
+                return new ValueTask<Apache.Arrow.RecordBatch?>((Apache.Arrow.RecordBatch?)null);
+            }
+        }
+
+        public void Dispose()
+        {
+            try
+            {
+                _reader.Dispose();
+            }
+            finally
+            {
+                _baseStream.Dispose();
             }
         }
     }

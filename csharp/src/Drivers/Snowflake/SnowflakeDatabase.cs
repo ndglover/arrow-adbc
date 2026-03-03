@@ -75,8 +75,7 @@ public sealed class SnowflakeDatabase : AdbcDatabase
         ObjectDisposedException.ThrowIf(_disposed, this);
 
         var config = ConnectionStringParser.ParseParameters(parameters, _parameters);
-        var logger = _loggerFactory?.CreateLogger<SnowflakeConnection>();
-        return await SnowflakeConnection.CreateAsync(config, _httpClient, _connectionPool, logger).ConfigureAwait(false);
+        return await SnowflakeConnection.CreateAsync(config, _httpClient, _connectionPool, _loggerFactory).ConfigureAwait(false);
     }
     
 
