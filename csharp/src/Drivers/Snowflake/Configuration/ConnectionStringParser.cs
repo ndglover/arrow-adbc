@@ -46,12 +46,12 @@ public static class ConnectionStringParser
         }
 
         // If only one is provided, use it directly
-        if (databaseDefaults == null)
+        if (databaseDefaults == null || databaseDefaults.Count == 0)
         {
             return BuildConfig(new Dictionary<string, string>(connectionParameters!, StringComparer.OrdinalIgnoreCase));
         }
 
-        if (connectionParameters == null)
+        if (connectionParameters == null || connectionParameters.Count == 0)
         {
             return BuildConfig(new Dictionary<string, string>(databaseDefaults, StringComparer.OrdinalIgnoreCase));
         }
@@ -74,12 +74,12 @@ public static class ConnectionStringParser
     {
         var config = new ConnectionConfig
         {
-            Account = GetRequiredParameter(parameters, "account"),
-            User = GetRequiredParameter(parameters, "user"),
-            Database = GetOptionalParameter(parameters, "db") ?? GetOptionalParameter(parameters, "database"),
-            Schema = GetOptionalParameter(parameters, "schema"),
-            Warehouse = GetOptionalParameter(parameters, "warehouse"),
-            Role = GetOptionalParameter(parameters, "role"),
+            Account = GetRequiredParameter(parameters, "adbc.snowflake.sql.account"),
+            User = GetRequiredParameter(parameters, "username"),
+            Database = GetOptionalParameter(parameters, "adbc.snowflake.sql.db"),
+            Schema = GetOptionalParameter(parameters, "adbc.snowflake.sql.schema"),
+            Warehouse = GetOptionalParameter(parameters, "adbc.snowflake.sql.warehouse"),
+            Role = GetOptionalParameter(parameters, "adbc.snowflake.sql.role"),
             Authentication = ParseAuthenticationConfig(parameters)
         };
 
@@ -105,27 +105,33 @@ public static class ConnectionStringParser
     private static AuthenticationConfig ParseAuthenticationConfig(IReadOnlyDictionary<string, string> parameters)
     {
         var authConfig = new AuthenticationConfig();
-        if (parameters.TryGetValue("authenticator", out var authenticatorStr))
+        
+        // ADBC standard: adbc.snowflake.sql.auth_type
+        string? authTypeStr = GetOptionalParameter(parameters, "adbc.snowflake.sql.auth_type");
+        
+        if (authTypeStr != null)
         {
-            authConfig.Type = authenticatorStr.ToLowerInvariant() switch
+            authConfig.Type = authTypeStr.ToLowerInvariant() switch
             {
-                "default" or "snowflake" => AuthenticationType.UsernamePassword,
-                "key_pair" or "jwt" or "snowflake_jwt" => AuthenticationType.KeyPair,
+                "snowflake" => AuthenticationType.UsernamePassword,
+                "snowflake_jwt" or "jwt" => AuthenticationType.KeyPair,
                 "oauth" => AuthenticationType.OAuth,
-                "sso" => AuthenticationType.Sso,
                 "externalbrowser" => AuthenticationType.ExternalBrowser,
-                _ => throw new ArgumentException($"Unsupported authenticator: {authenticatorStr}")
+                _ => throw new ArgumentException($"Unsupported auth_type: {authTypeStr}")
             };
         }
 
+        // Password - ADBC standard doesn't prefix this
         authConfig.Password = GetOptionalParameter(parameters, "password");
-        authConfig.PrivateKeyPath = GetOptionalParameter(parameters, "private_key_file") ?? GetOptionalParameter(parameters, "private_key_path");
-        authConfig.PrivateKeyPassphrase = GetOptionalParameter(parameters, "private_key_pwd") ?? GetOptionalParameter(parameters, "private_key_passphrase");
-        authConfig.OAuthToken = GetOptionalParameter(parameters, "token") ?? GetOptionalParameter(parameters, "oauth_token");
-        authConfig.OAuthRefreshToken = GetOptionalParameter(parameters, "oauth_refresh_token");
-
-        foreach (var kvp in parameters.Where(p => p.Key.StartsWith("sso_", StringComparison.OrdinalIgnoreCase)))
-            authConfig.SsoProperties[kvp.Key[4..]] = kvp.Value;
+        
+        // Private key - ADBC standard: adbc.snowflake.sql.client_option.jwt_private_key_pkcs8_value
+        authConfig.PrivateKey = GetOptionalParameter(parameters, "adbc.snowflake.sql.client_option.jwt_private_key_pkcs8_value");
+        
+        // Private key passphrase - ADBC standard: adbc.snowflake.sql.client_option.jwt_private_key_pkcs8_password
+        authConfig.PrivateKeyPassphrase = GetOptionalParameter(parameters, "adbc.snowflake.sql.client_option.jwt_private_key_pkcs8_password");
+        
+        // OAuth token - ADBC standard: adbc.snowflake.sql.client_option.auth_token
+        authConfig.OAuthToken = GetOptionalParameter(parameters, "adbc.snowflake.sql.client_option.auth_token");
 
         return authConfig;
     }

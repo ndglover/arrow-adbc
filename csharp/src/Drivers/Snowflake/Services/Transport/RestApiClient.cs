@@ -24,6 +24,7 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using Apache.Arrow.Adbc.Drivers.Snowflake.Services.Authentication;
 
 namespace Apache.Arrow.Adbc.Drivers.Snowflake.Services.Transport;
 
@@ -74,13 +75,9 @@ public class RestApiClient : IRestApiClient
             using var requestMessage = new HttpRequestMessage(HttpMethod.Post, endpoint);
             ConfigureRequest(requestMessage, token);
             
-            requestMessage.Content = JsonContent.Create(request);
+            requestMessage.Content = JsonContent.Create(request);            
             
-            // Debug: Log the request
-            var requestJson = await requestMessage.Content.ReadAsStringAsync();
-            Console.WriteLine($"DEBUG REQUEST to {endpoint}:");
-            Console.WriteLine(requestJson);
-            
+            var requestJson = await requestMessage.Content.ReadAsStringAsync();            
             if (_enableCompression)
             {
                 requestMessage.Headers.AcceptEncoding.Add(new StringWithQualityHeaderValue("gzip"));
@@ -88,13 +85,8 @@ public class RestApiClient : IRestApiClient
             }
 
             var response = await _httpClient.SendAsync(requestMessage, cancellationToken);
-            
-            // Debug: Log response status
-            Console.WriteLine($"DEBUG RESPONSE: {(int)response.StatusCode} {response.StatusCode}");
-            
             response.EnsureSuccessStatusCode();
-
-            // Handle compressed responses
+                        
             var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
             if (response.Content.Headers.ContentEncoding.Contains("gzip"))
             {
@@ -104,12 +96,9 @@ public class RestApiClient : IRestApiClient
             {
                 stream = new DeflateStream(stream, CompressionMode.Decompress);
             }
-
-            // Debug: Read and log the JSON
+                        
             using var reader = new StreamReader(stream);
             var json = await reader.ReadToEndAsync(cancellationToken);
-            Console.WriteLine($"DEBUG JSON RESPONSE: {json.Substring(0, Math.Min(500, json.Length))}...");
-
             var result = JsonSerializer.Deserialize<ApiResponse<T>>(json)
                 ?? throw new InvalidOperationException("Failed to deserialize API response.");
             
@@ -181,17 +170,10 @@ public class RestApiClient : IRestApiClient
     }
 
     private void ConfigureRequest(HttpRequestMessage request, AuthenticationToken token)
-    {
-        // Add authentication header - Snowflake uses "Snowflake Token=" format with session token
-        // Reference: snowflake-connector-net uses: "Snowflake Token=\"{sessionToken}\""
+    {        
         var sessionToken = token.SessionToken ?? token.AccessToken;
         var authHeader = $"Snowflake Token=\"{sessionToken}\"";
-        Console.WriteLine($"DEBUG AUTH: Using session token (first 20 chars): {sessionToken.Substring(0, Math.Min(20, sessionToken.Length))}...");
-        Console.WriteLine($"DEBUG AUTH: Has SessionToken: {token.SessionToken != null}, Has MasterToken: {token.MasterToken != null}");
-        request.Headers.Add("Authorization", authHeader);
-        
-        // Add Accept header - v1 API uses application/snowflake, not Arrow
-        // Reference: snowflake-connector-net uses "application/snowflake"
+        request.Headers.Add("Authorization", authHeader);        
         request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/snowflake"));
         
         // Add user agent - match Snowflake connector format to enable Arrow support
@@ -204,42 +186,36 @@ public class RestApiClient : IRestApiClient
     private async Task<TResult> ExecuteWithRetryAsync<TResult>(
         Func<Task<TResult>> operation,
         CancellationToken cancellationToken)
-    {
-        var attempt = 0;
+    {        
         Exception? lastException = null;
 
-        while (attempt < _maxRetries)
-        {
+        for (var attempt = 0; attempt < _maxRetries; attempt++)
+        {            
             try
             {
                 return await operation();
             }
             catch (HttpRequestException ex) when (IsTransientError(ex) && attempt < _maxRetries - 1)
             {
-                lastException = ex;
-                attempt++;
-                
-                // Exponential backoff with jitter
-                var delay = TimeSpan.FromMilliseconds(
-                    _baseRetryDelay.TotalMilliseconds * Math.Pow(2, attempt) +
-                    Random.Shared.Next(0, 100));
-                
-                await Task.Delay(delay, cancellationToken);
+                lastException = ex;                
+                await DelayAsync(attempt, cancellationToken);
             }
             catch (TaskCanceledException ex) when (ex.InnerException is TimeoutException && attempt < _maxRetries - 1)
             {
                 lastException = ex;
-                attempt++;
-                
-                var delay = TimeSpan.FromMilliseconds(
-                    _baseRetryDelay.TotalMilliseconds * Math.Pow(2, attempt) +
-                    Random.Shared.Next(0, 100));
-                
-                await Task.Delay(delay, cancellationToken);
+                await DelayAsync(attempt, cancellationToken);
             }
         }
 
         throw lastException ?? new InvalidOperationException("Operation failed after retries.");
+    }
+
+    async Task DelayAsync(int attempt, CancellationToken cancellationToken)
+    {
+        var delay = TimeSpan.FromMilliseconds(
+            _baseRetryDelay.TotalMilliseconds * Math.Pow(2, attempt) +
+            Random.Shared.Next(0, 100));
+        await Task.Delay(delay, cancellationToken);
     }
 
     private static bool IsTransientError(HttpRequestException ex)

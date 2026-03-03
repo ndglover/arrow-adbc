@@ -99,40 +99,40 @@ internal class SnowflakeTestingUtils
     {
         parameters = new Dictionary<string, string>
         {
-            { "account", Parameter(testConfiguration.Account, "account") },
-            { "user", Parameter(testConfiguration.User, "user") }
+            { "adbc.snowflake.sql.account", Parameter(testConfiguration.Account, "account") },
+            { "username", Parameter(testConfiguration.User, "user") }
         };
 
         // Add authentication
         if (testConfiguration.Authentication.Default is not null)
         {
-            parameters["user"] = Parameter(testConfiguration.Authentication.Default.User, "user");
+            parameters["username"] = Parameter(testConfiguration.Authentication.Default.User, "user");
             parameters["password"] = Parameter(testConfiguration.Authentication.Default.Password, "password");
         }
         else if (testConfiguration.Authentication.SnowflakeJwt is not null)
         {
-            parameters["user"] = Parameter(testConfiguration.Authentication.SnowflakeJwt.User, "user");
-            parameters["authenticator"] = "jwt";
+            parameters["username"] = Parameter(testConfiguration.Authentication.SnowflakeJwt.User, "user");
+            parameters["adbc.snowflake.sql.auth_type"] = "jwt";
             
             if (!string.IsNullOrWhiteSpace(testConfiguration.Authentication.SnowflakeJwt.PrivateKeyFile))
             {
-                parameters["private_key_path"] = testConfiguration.Authentication.SnowflakeJwt.PrivateKeyFile;
+                parameters["adbc.snowflake.sql.client_option.jwt_private_key_pkcs8_value"] = testConfiguration.Authentication.SnowflakeJwt.PrivateKeyFile;
             }
             else if (!string.IsNullOrWhiteSpace(testConfiguration.Authentication.SnowflakeJwt.PrivateKey))
             {
-                parameters["private_key"] = testConfiguration.Authentication.SnowflakeJwt.PrivateKey;
+                parameters["adbc.snowflake.sql.client_option.jwt_private_key_pkcs8_value"] = testConfiguration.Authentication.SnowflakeJwt.PrivateKey;
             }
 
             if (!string.IsNullOrWhiteSpace(testConfiguration.Authentication.SnowflakeJwt.PrivateKeyPassPhrase))
             {
-                parameters["private_key_passphrase"] = testConfiguration.Authentication.SnowflakeJwt.PrivateKeyPassPhrase;
+                parameters["adbc.snowflake.sql.client_option.jwt_private_key_pkcs8_password"] = testConfiguration.Authentication.SnowflakeJwt.PrivateKeyPassPhrase;
             }
         }
         else if (testConfiguration.Authentication.OAuth is not null)
         {
-            parameters["user"] = Parameter(testConfiguration.Authentication.OAuth.User, "user");
-            parameters["authenticator"] = "oauth";
-            parameters["oauth_token"] = Parameter(testConfiguration.Authentication.OAuth.Token, "oauth_token");
+            parameters["username"] = Parameter(testConfiguration.Authentication.OAuth.User, "user");
+            parameters["adbc.snowflake.sql.auth_type"] = "oauth";
+            parameters["adbc.snowflake.sql.client_option.auth_token"] = Parameter(testConfiguration.Authentication.OAuth.Token, "oauth_token");
         }
         else
         {
@@ -143,22 +143,22 @@ internal class SnowflakeTestingUtils
         // Add optional parameters
         if (!string.IsNullOrWhiteSpace(testConfiguration.Database))
         {
-            parameters["database"] = testConfiguration.Database;
+            parameters["adbc.snowflake.sql.db"] = testConfiguration.Database;
         }
 
         if (!string.IsNullOrWhiteSpace(testConfiguration.Schema))
         {
-            parameters["schema"] = testConfiguration.Schema;
+            parameters["adbc.snowflake.sql.schema"] = testConfiguration.Schema;
         }
 
         if (!string.IsNullOrWhiteSpace(testConfiguration.Warehouse))
         {
-            parameters["warehouse"] = testConfiguration.Warehouse;
+            parameters["adbc.snowflake.sql.warehouse"] = testConfiguration.Warehouse;
         }
 
         if (!string.IsNullOrWhiteSpace(testConfiguration.Role))
         {
-            parameters["role"] = testConfiguration.Role;
+            parameters["adbc.snowflake.sql.role"] = testConfiguration.Role;
         }
 
         return new SnowflakeDriver();

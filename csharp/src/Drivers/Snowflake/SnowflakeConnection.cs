@@ -53,8 +53,8 @@ public sealed class SnowflakeConnection : AdbcConnection
         _config = config;
         _connectionPool = connectionPool;
         _options = new Dictionary<string, string>();
-        
-        // Acquire connection from pool
+
+        //Not happy about this sync-over-async, discussed options with team
         _pooledConnection = _connectionPool.AcquireConnectionAsync(_config).GetAwaiter().GetResult();
         
         // Initialize services
@@ -66,7 +66,7 @@ public sealed class SnowflakeConnection : AdbcConnection
         _preparedStatementManager = new PreparedStatementManager(apiClient, typeConverter, _config.Account);
     }
 
-    /// <summary>
+    /// <summary>AdbcDatabaseAdbcDatabase
     /// Creates a new statement for executing queries.
     /// </summary>
     /// <returns>An AdbcStatement instance.</returns>

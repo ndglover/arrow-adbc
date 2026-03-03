@@ -24,7 +24,7 @@ using Apache.Arrow.Adbc.Drivers.Snowflake;
 
 // Create driver and database
 var driver = new SnowflakeDriver();
-var database = driver.Open("account=myaccount;user=myuser;password=mypassword;database=mydb");
+var database = driver.Open("adbc.snowflake.sql.account=myaccount;username=myuser;password=mypassword;adbc.snowflake.sql.db=mydb");
 
 // Connect and execute query
 using var connection = database.Connect();
@@ -42,36 +42,48 @@ while (result.MoveNext())
 
 ## Configuration
 
-The driver supports various configuration options through connection strings:
+The driver supports ADBC-standard configuration options through connection strings following the specification at https://arrow.apache.org/adbc/main/driver/snowflake.html:
 
-- `account`: Snowflake account identifier
-- `user`: Username for authentication
+### Connection Parameters
+- `adbc.snowflake.sql.account`: Snowflake account identifier (required)
+- `username`: Username for authentication (required)
 - `password`: Password for basic authentication
-- `database`: Default database name
-- `schema`: Default schema name
-- `warehouse`: Compute warehouse to use
-- `role`: Role to assume after connection
-- `authenticator`: Authentication method (default, key_pair, oauth, sso)
-- `private_key_path`: Path to RSA private key file (for key pair auth)
-- `oauth_token`: OAuth access token
+- `adbc.snowflake.sql.db`: Default database name
+- `adbc.snowflake.sql.schema`: Default schema name
+- `adbc.snowflake.sql.warehouse`: Compute warehouse to use
+- `adbc.snowflake.sql.role`: Role to assume after connection
+- `adbc.snowflake.sql.uri.host`: Snowflake host (optional, for custom endpoints)
+
+### Authentication Parameters
+- `adbc.snowflake.sql.auth_type`: Authentication method (snowflake, jwt, oauth, externalbrowser)
+- `adbc.snowflake.sql.client_option.jwt_private_key_pkcs8_value`: RSA private key in PKCS8 format (for JWT auth)
+- `adbc.snowflake.sql.client_option.jwt_private_key_pkcs8_password`: Passphrase for encrypted private key
+- `adbc.snowflake.sql.client_option.auth_token`: OAuth access token
+
+### Other Parameters
 - `connection_timeout`: Connection timeout in seconds
-- `query_timeout`: Query timeout in seconds
+- `enable_compression`: Enable gzip compression for requests
 
 ## Authentication Methods
 
 ### Username/Password
 ```csharp
-var connectionString = "account=myaccount;user=myuser;password=mypassword";
+var connectionString = "adbc.snowflake.sql.account=myaccount;username=myuser;password=mypassword";
 ```
 
-### RSA Key Pair
+### JWT (Key Pair)
 ```csharp
-var connectionString = "account=myaccount;user=myuser;authenticator=key_pair;private_key_path=/path/to/key.pem";
+var connectionString = "adbc.snowflake.sql.account=myaccount;username=myuser;adbc.snowflake.sql.auth_type=jwt;adbc.snowflake.sql.client_option.jwt_private_key_pkcs8_value=YOUR_PRIVATE_KEY";
 ```
 
 ### OAuth 2.0
 ```csharp
-var connectionString = "account=myaccount;user=myuser;authenticator=oauth;oauth_token=your_token";
+var connectionString = "adbc.snowflake.sql.account=myaccount;username=myuser;adbc.snowflake.sql.auth_type=oauth;adbc.snowflake.sql.client_option.auth_token=your_token";
+```
+
+### External Browser
+```csharp
+var connectionString = "adbc.snowflake.sql.account=myaccount;username=myuser;adbc.snowflake.sql.auth_type=externalbrowser";
 ```
 
 ## Requirements

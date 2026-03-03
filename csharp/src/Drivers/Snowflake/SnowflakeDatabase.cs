@@ -64,6 +64,7 @@ public sealed class SnowflakeDatabase : AdbcDatabase
         var config = ConnectionStringParser.ParseParameters(parameters, _parameters);
         return new SnowflakeConnection(config, _connectionPool);
     }
+    
 
     /// <summary>
     /// Disposes the database and releases any resources.

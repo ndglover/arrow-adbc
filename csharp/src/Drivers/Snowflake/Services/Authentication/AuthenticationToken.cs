@@ -16,42 +16,8 @@
  */
 
 using System;
-using System.Threading;
-using System.Threading.Tasks;
-using Apache.Arrow.Adbc.Drivers.Snowflake.Configuration;
 
-namespace Apache.Arrow.Adbc.Drivers.Snowflake.Services;
-
-/// <summary>
-/// Provides authentication services for Snowflake connections.
-/// </summary>
-public interface IAuthenticationService
-{
-    /// <summary>
-    /// Authenticates using the provided configuration and returns an authentication token.
-    /// </summary>
-    /// <param name="account">The Snowflake account identifier.</param>
-    /// <param name="user">The username.</param>
-    /// <param name="authConfig">The authentication configuration.</param>
-    /// <param name="connectionConfig">The connection configuration containing warehouse, database, schema, and role settings.</param>
-    /// <param name="cancellationToken">The cancellation token.</param>
-    /// <returns>An authentication token.</returns>
-    Task<AuthenticationToken> AuthenticateAsync(string account, string user, AuthenticationConfig authConfig, ConnectionConfig? connectionConfig = null, CancellationToken cancellationToken = default);
-
-    /// <summary>
-    /// Refreshes an existing authentication token.
-    /// </summary>
-    /// <param name="token">The token to refresh.</param>
-    /// <param name="cancellationToken">The cancellation token.</param>
-    /// <returns>A refreshed authentication token.</returns>
-    Task<AuthenticationToken> RefreshTokenAsync(AuthenticationToken token, CancellationToken cancellationToken = default);
-
-    /// <summary>
-    /// Invalidates an authentication token.
-    /// </summary>
-    /// <param name="token">The token to invalidate.</param>
-    void InvalidateToken(AuthenticationToken token);
-}
+namespace Apache.Arrow.Adbc.Drivers.Snowflake.Services.Authentication;
 
 /// <summary>
 /// Represents an authentication token for Snowflake connections.

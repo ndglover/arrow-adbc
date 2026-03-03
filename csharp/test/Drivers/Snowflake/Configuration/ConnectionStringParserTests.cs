@@ -45,7 +45,7 @@ public class ConnectionStringParserTests
     public void Parse_WithValidBasicConnectionString_ShouldReturnValidConfig()
     {
         // Arrange
-        var parameters = ParseConnectionString("account=testaccount;user=testuser;password=testpass;database=testdb");
+        var parameters = ParseConnectionString("adbc.snowflake.sql.account=testaccount;username=testuser;password=testpass;adbc.snowflake.sql.db=testdb");
 
         // Act
         var config = ConnectionStringParser.ParseParameters(parameters);
@@ -63,7 +63,7 @@ public class ConnectionStringParserTests
     public void Parse_WithKeyPairAuthentication_ShouldReturnValidConfig()
     {
         // Arrange
-        var parameters = ParseConnectionString("account=testaccount;user=testuser;authenticator=key_pair;private_key_path=/path/to/key.pem");
+        var parameters = ParseConnectionString("adbc.snowflake.sql.account=testaccount;username=testuser;adbc.snowflake.sql.auth_type=jwt;adbc.snowflake.sql.client_option.jwt_private_key_pkcs8_value=PRIVATE_KEY_CONTENT");
 
         // Act
         var config = ConnectionStringParser.ParseParameters(parameters);
@@ -73,14 +73,14 @@ public class ConnectionStringParserTests
         Assert.Equal("testaccount", config.Account);
         Assert.Equal("testuser", config.User);
         Assert.Equal(AuthenticationType.KeyPair, config.Authentication.Type);
-        Assert.Equal("/path/to/key.pem", config.Authentication.PrivateKeyPath);
+        Assert.Equal("PRIVATE_KEY_CONTENT", config.Authentication.PrivateKey);
     }
 
     [Fact]
     public void Parse_WithOAuthAuthentication_ShouldReturnValidConfig()
     {
         // Arrange
-        var parameters = ParseConnectionString("account=testaccount;user=testuser;authenticator=oauth;oauth_token=test_token");
+        var parameters = ParseConnectionString("adbc.snowflake.sql.account=testaccount;username=testuser;adbc.snowflake.sql.auth_type=oauth;adbc.snowflake.sql.client_option.auth_token=test_token");
 
         // Act
         var config = ConnectionStringParser.ParseParameters(parameters);
@@ -97,7 +97,7 @@ public class ConnectionStringParserTests
     public void Parse_WithTimeoutSettings_ShouldReturnValidConfig()
     {
         // Arrange
-        var parameters = ParseConnectionString("account=testaccount;user=testuser;password=testpass;connection_timeout=300");
+        var parameters = ParseConnectionString("adbc.snowflake.sql.account=testaccount;username=testuser;password=testpass;connection_timeout=300");
 
         // Act
         var config = ConnectionStringParser.ParseParameters(parameters);
@@ -111,7 +111,7 @@ public class ConnectionStringParserTests
     public void Parse_WithPoolConfiguration_ShouldReturnValidConfig()
     {
         // Arrange
-        var parameters = ParseConnectionString("account=testaccount;user=testuser;password=testpass;max_pool_size=20");
+        var parameters = ParseConnectionString("adbc.snowflake.sql.account=testaccount;username=testuser;password=testpass;max_pool_size=20");
 
         // Act
         var config = ConnectionStringParser.ParseParameters(parameters);
@@ -124,19 +124,15 @@ public class ConnectionStringParserTests
     [Fact]
     public void Parse_WithSsoProperties_ShouldReturnValidConfig()
     {
-        // Arrange
-        var parameters = ParseConnectionString("account=testaccount;user=testuser;authenticator=sso;sso_url=https://sso.example.com;sso_provider=okta");
+        // Arrange - SSO not currently supported in ADBC standard, removing this test
+        var parameters = ParseConnectionString("adbc.snowflake.sql.account=testaccount;username=testuser;adbc.snowflake.sql.auth_type=externalbrowser");
 
         // Act
         var config = ConnectionStringParser.ParseParameters(parameters);
 
         // Assert
         Assert.NotNull(config);
-        Assert.Equal(AuthenticationType.Sso, config.Authentication.Type);
-        Assert.True(config.Authentication.SsoProperties.ContainsKey("url"));
-        Assert.True(config.Authentication.SsoProperties.ContainsKey("provider"));
-        Assert.Equal("https://sso.example.com", config.Authentication.SsoProperties["url"]);
-        Assert.Equal("okta", config.Authentication.SsoProperties["provider"]);
+        Assert.Equal(AuthenticationType.ExternalBrowser, config.Authentication.Type);
     }
 
     [Fact]
@@ -151,7 +147,7 @@ public class ConnectionStringParserTests
     public void Parse_WithMissingRequiredParameter_ShouldThrowArgumentException()
     {
         // Arrange
-        var parameters = ParseConnectionString("user=testuser;password=testpass"); // Missing account
+        var parameters = ParseConnectionString("username=testuser;password=testpass"); // Missing account
 
         // Act & Assert
         var exception = Assert.Throws<ArgumentException>(() => ConnectionStringParser.ParseParameters(parameters));
@@ -162,18 +158,18 @@ public class ConnectionStringParserTests
     public void Parse_WithInvalidAuthenticator_ShouldThrowArgumentException()
     {
         // Arrange
-        var parameters = ParseConnectionString("account=testaccount;user=testuser;authenticator=invalid_auth");
+        var parameters = ParseConnectionString("adbc.snowflake.sql.account=testaccount;username=testuser;adbc.snowflake.sql.auth_type=invalid_auth");
 
         // Act & Assert
         var exception = Assert.Throws<ArgumentException>(() => ConnectionStringParser.ParseParameters(parameters));
-        Assert.Contains("Unsupported authenticator", exception.Message);
+        Assert.Contains("Unsupported auth_type", exception.Message);
     }
 
     [Fact]
     public void Parse_WithCaseInsensitiveParameters_ShouldReturnValidConfig()
     {
         // Arrange
-        var parameters = ParseConnectionString("ACCOUNT=testaccount;User=testuser;PASSWORD=testpass;DATABASE=testdb");
+        var parameters = ParseConnectionString("ADBC.SNOWFLAKE.SQL.ACCOUNT=testaccount;Username=testuser;PASSWORD=testpass;ADBC.SNOWFLAKE.SQL.DB=testdb");
 
         // Act
         var config = ConnectionStringParser.ParseParameters(parameters);
@@ -192,18 +188,18 @@ public class ConnectionStringParserTests
         // Arrange - database parameters
         var databaseParams = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {
-            { "account", "testaccount" },
-            { "user", "testuser" },
+            { "adbc.snowflake.sql.account", "testaccount" },
+            { "username", "testuser" },
             { "password", "testpass" },
-            { "warehouse", "DEFAULT_WH" },
-            { "database", "DEFAULT_DB" }
+            { "adbc.snowflake.sql.warehouse", "DEFAULT_WH" },
+            { "adbc.snowflake.sql.db", "DEFAULT_DB" }
         };
 
         // Connection-specific overrides
         var connectionParams = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {
-            { "warehouse", "ANALYTICS_WH" },  // Override
-            { "schema", "PUBLIC" }  // New parameter
+            { "adbc.snowflake.sql.warehouse", "ANALYTICS_WH" },  // Override
+            { "adbc.snowflake.sql.schema", "PUBLIC" }  // New parameter
         };
 
         // Act
@@ -224,14 +220,14 @@ public class ConnectionStringParserTests
         // Arrange - test that case-insensitive merge works correctly
         var databaseParams = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {
-            { "Account", "testaccount" },
-            { "User", "testuser" },
-            { "Warehouse", "DEFAULT_WH" }
+            { "ADBC.SNOWFLAKE.SQL.ACCOUNT", "testaccount" },
+            { "Username", "testuser" },
+            { "ADBC.SNOWFLAKE.SQL.WAREHOUSE", "DEFAULT_WH" }
         };
 
         var connectionParams = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {
-            { "warehouse", "OVERRIDE_WH" },  // Different casing, should override
+            { "adbc.snowflake.sql.warehouse", "OVERRIDE_WH" },  // Different casing, should override
             { "password", "testpass" }
         };
 

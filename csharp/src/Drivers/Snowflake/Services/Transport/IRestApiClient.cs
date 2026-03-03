@@ -18,6 +18,7 @@
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
+using Apache.Arrow.Adbc.Drivers.Snowflake.Services.Authentication;
 
 namespace Apache.Arrow.Adbc.Drivers.Snowflake.Services.Transport;
 
@@ -65,35 +66,4 @@ public interface IRestApiClient
         string endpoint,
         AuthenticationToken token,
         CancellationToken cancellationToken = default);
-}
-
-/// <summary>
-/// Represents an API response from Snowflake.
-/// </summary>
-/// <typeparam name="T">The response data type.</typeparam>
-public class ApiResponse<T>
-{
-    /// <summary>
-    /// Gets or sets a value indicating whether the request was successful.
-    /// </summary>
-    [System.Text.Json.Serialization.JsonPropertyName("success")]
-    public bool Success { get; set; }
-
-    /// <summary>
-    /// Gets or sets the response message.
-    /// </summary>
-    [System.Text.Json.Serialization.JsonPropertyName("message")]
-    public string? Message { get; set; }
-
-    /// <summary>
-    /// Gets or sets the response data.
-    /// </summary>
-    [System.Text.Json.Serialization.JsonPropertyName("data")]
-    public T? Data { get; set; }
-
-    /// <summary>
-    /// Gets or sets the error code (if any).
-    /// </summary>
-    [System.Text.Json.Serialization.JsonPropertyName("code")]
-    public string? Code { get; set; }
 }

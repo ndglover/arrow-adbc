@@ -41,6 +41,11 @@ public class AuthenticationConfig
     public string? PrivateKeyPath { get; set; }
 
     /// <summary>
+    /// Gets or sets the RSA private key value in PKCS8 format (inline, not from file).
+    /// </summary>
+    public string? PrivateKey { get; set; }
+
+    /// <summary>
     /// Gets or sets the passphrase for encrypted private keys.
     /// </summary>
     public string? PrivateKeyPassphrase { get; set; }
@@ -80,11 +85,11 @@ public class AuthenticationConfig
                 break;
 
             case AuthenticationType.KeyPair:
-                if (string.IsNullOrEmpty(PrivateKeyPath))
+                if (string.IsNullOrEmpty(PrivateKeyPath) && string.IsNullOrEmpty(PrivateKey))
                 {
                     results.Add(new ValidationResult(
-                        "Private key path is required for key pair authentication.",
-                        new[] { nameof(PrivateKeyPath) }));
+                        "Private key path or private key value is required for key pair authentication.",
+                        new[] { nameof(PrivateKeyPath), nameof(PrivateKey) }));
                 }
                 break;
 
