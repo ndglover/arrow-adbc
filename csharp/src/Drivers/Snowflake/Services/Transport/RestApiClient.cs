@@ -64,45 +64,21 @@ public class RestApiClient : IRestApiClient
         AuthenticationToken token,
         CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrEmpty(endpoint))
-            throw new ArgumentException("Endpoint cannot be null or empty.", nameof(endpoint));
+        ArgumentException.ThrowIfNullOrWhiteSpace(endpoint, nameof(endpoint));
+        ArgumentNullException.ThrowIfNull(token, nameof(token));
         
-        if (token == null)
-            throw new ArgumentNullException(nameof(token));
-
         return await ExecuteWithRetryAsync(async () =>
         {
             using var requestMessage = new HttpRequestMessage(HttpMethod.Post, endpoint);
             ConfigureRequest(requestMessage, token);
             
             requestMessage.Content = JsonContent.Create(request);            
-            
-            var requestJson = await requestMessage.Content.ReadAsStringAsync();            
-            if (_enableCompression)
-            {
-                requestMessage.Headers.AcceptEncoding.Add(new StringWithQualityHeaderValue("gzip"));
-                requestMessage.Headers.AcceptEncoding.Add(new StringWithQualityHeaderValue("deflate"));
-            }
+            AddCompressionHeadersIfEnabled(requestMessage);
 
             var response = await _httpClient.SendAsync(requestMessage, cancellationToken);
             response.EnsureSuccessStatusCode();
-                        
-            var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
-            if (response.Content.Headers.ContentEncoding.Contains("gzip"))
-            {
-                stream = new GZipStream(stream, CompressionMode.Decompress);
-            }
-            else if (response.Content.Headers.ContentEncoding.Contains("deflate"))
-            {
-                stream = new DeflateStream(stream, CompressionMode.Decompress);
-            }
-                        
-            using var reader = new StreamReader(stream);
-            var json = await reader.ReadToEndAsync(cancellationToken);
-            var result = JsonSerializer.Deserialize<ApiResponse<T>>(json)
-                ?? throw new InvalidOperationException("Failed to deserialize API response.");
-            
-            return result;
+
+            return await ReadApiResponseAsync<T>(response, cancellationToken);
         }, cancellationToken);
     }
 
@@ -112,12 +88,9 @@ public class RestApiClient : IRestApiClient
         AuthenticationToken token,
         CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrEmpty(url))
-            throw new ArgumentException("URL cannot be null or empty.", nameof(url));
+        ArgumentException.ThrowIfNullOrWhiteSpace(url, nameof(url));
+        ArgumentNullException.ThrowIfNull(token, nameof(token));
         
-        if (token == null)
-            throw new ArgumentNullException(nameof(token));
-
         return await ExecuteWithRetryAsync(async () =>
         {
             using var requestMessage = new HttpRequestMessage(HttpMethod.Get, url);
@@ -128,19 +101,7 @@ public class RestApiClient : IRestApiClient
             var response = await _httpClient.SendAsync(requestMessage, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
             response.EnsureSuccessStatusCode();
 
-            var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
-            
-            // Handle compressed responses
-            if (response.Content.Headers.ContentEncoding.Contains("gzip"))
-            {
-                return new GZipStream(stream, CompressionMode.Decompress);
-            }
-            else if (response.Content.Headers.ContentEncoding.Contains("deflate"))
-            {
-                return new DeflateStream(stream, CompressionMode.Decompress);
-            }
-
-            return stream;
+            return await GetResponseStreamAsync(response, cancellationToken);
         }, cancellationToken);
     }
 
@@ -150,11 +111,8 @@ public class RestApiClient : IRestApiClient
         AuthenticationToken token,
         CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrEmpty(endpoint))
-            throw new ArgumentException("Endpoint cannot be null or empty.", nameof(endpoint));
-        
-        if (token == null)
-            throw new ArgumentNullException(nameof(token));
+        ArgumentException.ThrowIfNullOrWhiteSpace(endpoint, nameof(endpoint));
+        ArgumentNullException.ThrowIfNull(token, nameof(token));        
 
         return await ExecuteWithRetryAsync(async () =>
         {
@@ -164,9 +122,39 @@ public class RestApiClient : IRestApiClient
             var response = await _httpClient.SendAsync(requestMessage, cancellationToken);
             response.EnsureSuccessStatusCode();
 
-            return await response.Content.ReadFromJsonAsync<ApiResponse<T>>(cancellationToken)
-                ?? throw new InvalidOperationException("Failed to deserialize API response.");
+            return await ReadApiResponseAsync<T>(response, cancellationToken);
         }, cancellationToken);
+    }
+
+    private void AddCompressionHeadersIfEnabled(HttpRequestMessage request)
+    {
+        if (!_enableCompression) return;
+
+        request.Headers.AcceptEncoding.Add(new StringWithQualityHeaderValue("gzip"));
+        request.Headers.AcceptEncoding.Add(new StringWithQualityHeaderValue("deflate"));
+    }
+
+    private async Task<Stream> GetResponseStreamAsync(HttpResponseMessage response, CancellationToken cancellationToken)
+    {
+        var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
+        if (response.Content.Headers.ContentEncoding.Contains("gzip"))
+            return new GZipStream(stream, CompressionMode.Decompress);
+
+        if (response.Content.Headers.ContentEncoding.Contains("deflate"))
+            return new DeflateStream(stream, CompressionMode.Decompress);
+
+        return stream;
+    }
+
+    private async Task<ApiResponse<T>> ReadApiResponseAsync<T>(HttpResponseMessage response, CancellationToken cancellationToken)
+    {
+        using var stream = await GetResponseStreamAsync(response, cancellationToken);
+        using var reader = new StreamReader(stream);
+        var json = await reader.ReadToEndAsync(cancellationToken);
+        var result = JsonSerializer.Deserialize<ApiResponse<T>>(json)
+            ?? throw new InvalidOperationException("Failed to deserialize API response.");
+
+        return result;
     }
 
     private void ConfigureRequest(HttpRequestMessage request, AuthenticationToken token)

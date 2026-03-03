@@ -49,16 +49,15 @@ public class PreparedStatementManager
         ITypeConverter typeConverter,
         string account)
     {
-        _apiClient = apiClient ?? throw new ArgumentNullException(nameof(apiClient));
-        _typeConverter = typeConverter ?? throw new ArgumentNullException(nameof(typeConverter));
-        
-        if (string.IsNullOrEmpty(account))
-            throw new ArgumentException("Account cannot be null or empty.", nameof(account));
+        ArgumentNullException.ThrowIfNull(apiClient, nameof(apiClient));        
+        ArgumentNullException.ThrowIfNull(typeConverter, nameof(typeConverter));
+        ArgumentException.ThrowIfNullOrWhiteSpace(account, nameof(account));
 
+        _apiClient = apiClient;
+        _typeConverter = typeConverter;
         _accountUrl = account.Contains(".")
             ? $"https://{account}"
             : $"https://{account}.snowflakecomputing.com";
-
         _statementCache = new ConcurrentDictionary<string, PreparedStatement>();
     }
 
@@ -82,11 +81,8 @@ public class PreparedStatementManager
         AuthenticationToken? authToken = null,
         CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrEmpty(statement))
-            throw new ArgumentException("Statement cannot be null or empty.", nameof(statement));
-
-        if (authToken == null)
-            throw new ArgumentNullException(nameof(authToken));
+        ArgumentException.ThrowIfNullOrWhiteSpace(statement, nameof(statement));
+        ArgumentNullException.ThrowIfNull(authToken, nameof(authToken));
 
         // Check cache first
         var cacheKey = GenerateCacheKey(statement, database, schema);
@@ -154,14 +150,9 @@ public class PreparedStatementManager
         AuthenticationToken authToken,
         CancellationToken cancellationToken = default)
     {
-        if (statement == null)
-            throw new ArgumentNullException(nameof(statement));
-
-        if (parameters == null)
-            throw new ArgumentNullException(nameof(parameters));
-
-        if (authToken == null)
-            throw new ArgumentNullException(nameof(authToken));
+        ArgumentNullException.ThrowIfNull(statement, nameof(statement));
+        ArgumentNullException.ThrowIfNull(parameters, nameof(parameters));
+        ArgumentNullException.ThrowIfNull(authToken, nameof(authToken));
 
         // Validate parameters against schema
         if (statement.ParameterSchema != null)
@@ -219,14 +210,10 @@ public class PreparedStatementManager
         AuthenticationToken authToken,
         CancellationToken cancellationToken = default)
     {
-        if (statement == null)
-            throw new ArgumentNullException(nameof(statement));
-
-        if (parameterSets == null || parameterSets.Count == 0)
-            throw new ArgumentException("Parameter sets cannot be null or empty.", nameof(parameterSets));
-
-        if (authToken == null)
-            throw new ArgumentNullException(nameof(authToken));
+        ArgumentNullException.ThrowIfNull(statement, nameof(statement));
+        ArgumentNullException.ThrowIfNull(parameterSets, nameof(parameterSets));
+        if (parameterSets.Count == 0) throw new ArgumentException("Parameter sets cannot be empty.", nameof(parameterSets));
+        ArgumentNullException.ThrowIfNull(authToken, nameof(authToken));
 
         var results = new List<QueryResult>();
 
@@ -288,8 +275,7 @@ public class PreparedStatementManager
     /// <param name="statement">The prepared statement to close.</param>
     public void Close(PreparedStatement statement)
     {
-        if (statement == null)
-            throw new ArgumentNullException(nameof(statement));
+        ArgumentNullException.ThrowIfNull(statement, nameof(statement));
 
         // Remove from cache
         var keysToRemove = _statementCache
