@@ -22,7 +22,7 @@ using System.Threading.Tasks;
 using Apache.Arrow.Adbc.Drivers.Snowflake.Services.Authentication;
 using Apache.Arrow.Ipc;
 
-namespace Apache.Arrow.Adbc.Drivers.Snowflake.Services;
+namespace Apache.Arrow.Adbc.Drivers.Snowflake.Services.Query;
 
 /// <summary>
 /// Provides query execution services for Snowflake connections.

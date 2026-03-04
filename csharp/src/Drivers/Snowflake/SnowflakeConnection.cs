@@ -27,6 +27,7 @@ using Apache.Arrow.Adbc.Drivers.Snowflake.Services.ConnectionPool;
 using Apache.Arrow.Adbc.Drivers.Snowflake.Services.Transport;
 using Apache.Arrow.Adbc.Drivers.Snowflake.Services.TypeConversion;
 using System.Threading.Tasks;
+using Apache.Arrow.Adbc.Drivers.Snowflake.Services.Query;
 
 namespace Apache.Arrow.Adbc.Drivers.Snowflake;
 

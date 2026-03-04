@@ -36,24 +36,44 @@ public sealed class SnowflakeDatabase : AdbcDatabase
     private readonly HttpClient _httpClient;
     private readonly ILoggerFactory? _loggerFactory;
     private bool _disposed;
+    private readonly bool _ownsHttpClient;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="SnowflakeDatabase"/> class.
     /// </summary>
     /// <param name="parameters">The ADBC connection parameters.</param>
-    public SnowflakeDatabase(IReadOnlyDictionary<string, string>? parameters = null, HttpClient? httpClient = null, ILoggerFactory? loggerFactory = null)
+    /// <param name="httpClient">option to pass a custom HttpClient</param>
+    /// <param name="loggerFactory">option to pass a custom ILoggerFactory</param>
+    public SnowflakeDatabase(
+        IReadOnlyDictionary<string, string>? parameters = null,
+        HttpClient? httpClient = null,
+        ILoggerFactory? loggerFactory = null) : this(parameters, httpClient, loggerFactory, null)
+    {
+    }
+
+
+    internal SnowflakeDatabase(
+        IReadOnlyDictionary<string, string>? parameters,
+        HttpClient? httpClient,
+        ILoggerFactory? loggerFactory,
+        IConnectionPoolManager? connectionPoolManager)
     {
         _parameters = parameters;
         _loggerFactory = loggerFactory;
-
+        _ownsHttpClient = httpClient == null;
         _httpClient  = httpClient ?? new HttpClient();
-        var basicAuth = new BasicAuthenticator(_httpClient);
-        var keyPairAuth = new KeyPairAuthenticator(_httpClient);
-        var oauthAuth = new OAuthAuthenticator(_httpClient);
-        var ssoAuth = new SsoAuthenticator(_httpClient);
+        _connectionPool = connectionPoolManager ?? CreateDefaultPool(_httpClient);
+    }
 
-        var authService = new AuthenticationService(basicAuth, keyPairAuth, oauthAuth, ssoAuth);
-        _connectionPool = new ConnectionPoolManager(authService);
+    private static IConnectionPoolManager CreateDefaultPool(HttpClient httpClient)
+    {
+        var authService = new AuthenticationService(
+            new BasicAuthenticator(httpClient),
+            new KeyPairAuthenticator(httpClient),
+            new OAuthAuthenticator(httpClient),
+            new SsoAuthenticator(httpClient));
+
+        return new ConnectionPoolManager(authService);
     }
 
     /// <summary>
@@ -63,7 +83,7 @@ public sealed class SnowflakeDatabase : AdbcDatabase
     /// <returns>An AdbcConnection instance.</returns>
     public override AdbcConnection Connect(IReadOnlyDictionary<string, string>? parameters)
     {
-        ObjectDisposedException.ThrowIf(_disposed, this);        
+        ObjectDisposedException.ThrowIf(_disposed, this);
         return ConnectAsync(parameters).GetAwaiter().GetResult();
     }
 
@@ -77,7 +97,7 @@ public sealed class SnowflakeDatabase : AdbcDatabase
         var config = ConnectionStringParser.ParseParameters(parameters, _parameters);
         return await SnowflakeConnection.CreateAsync(config, _httpClient, _connectionPool, _loggerFactory).ConfigureAwait(false);
     }
-    
+
 
     /// <summary>
     /// Disposes the database and releases any resources.
@@ -87,6 +107,8 @@ public sealed class SnowflakeDatabase : AdbcDatabase
         if (!_disposed)
         {
             _connectionPool?.Dispose();
+            if (_ownsHttpClient)
+                _httpClient?.Dispose();
             _disposed = true;
         }
         base.Dispose();

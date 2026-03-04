@@ -25,7 +25,7 @@ using Apache.Arrow.Adbc.Drivers.Snowflake.Services.Transport;
 using Apache.Arrow.Adbc.Drivers.Snowflake.Services.TypeConversion;
 using Microsoft.Extensions.Logging;
 
-namespace Apache.Arrow.Adbc.Drivers.Snowflake.Services;
+namespace Apache.Arrow.Adbc.Drivers.Snowflake.Services.Query;
 
 /// <summary>
 /// Implements query execution for Snowflake connections.
@@ -54,7 +54,7 @@ public class QueryExecutor : IQueryExecutor
         _apiClient = apiClient ?? throw new ArgumentNullException(nameof(apiClient));
         _typeConverter = typeConverter ?? throw new ArgumentNullException(nameof(typeConverter));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-        
+
         if (string.IsNullOrEmpty(account))
             throw new ArgumentException("Account cannot be null or empty.", nameof(account));
 
@@ -96,10 +96,10 @@ public class QueryExecutor : IQueryExecutor
             var requestId = Guid.NewGuid().ToString();
             var requestGuid = Guid.NewGuid().ToString();
             var startTime = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds().ToString();
-            
+
             // Build endpoint with session ID if available
             var endpoint = $"{_accountUrl}{QueryEndpoint}?requestId={requestId}&request_guid={requestGuid}&startTime={startTime}";
-            
+
             // Add session ID to maintain session state (required for ALTER SESSION settings to persist)
             if (!string.IsNullOrEmpty(request.AuthToken.SessionId))
             {
@@ -139,7 +139,7 @@ public class QueryExecutor : IQueryExecutor
             _logger.LogDebug("Has RowSetBase64 = {HasRowSetBase64}", !string.IsNullOrEmpty(data.RowSetBase64));
             _logger.LogDebug("Has RowSet = {HasRowSet}", data.RowSet != null);
             _logger.LogDebug("Has RowType = {HasRowType}", data.RowType != null);
-            
+
             // Debug: Check if DOTNET_QUERY_RESULT_FORMAT parameter is in the response
             if (data.Parameters != null)
             {
@@ -176,7 +176,7 @@ public class QueryExecutor : IQueryExecutor
                     ExecutionTime = stopwatch.Elapsed
                 };
             }
-            
+
             // JSON (rowset/rowtype) format is not supported by this executor.
             // Only Arrow-serialized results (rowsetBase64) are handled.
             if (data.RowType != null && data.RowSet != null)
@@ -209,7 +209,7 @@ public class QueryExecutor : IQueryExecutor
         catch (Exception ex)
         {
             stopwatch.Stop();
-            
+
             return new QueryResult
             {
                 Status = QueryStatus.Failed,
@@ -264,7 +264,7 @@ public class QueryExecutor : IQueryExecutor
     private Apache.Arrow.Schema ConvertRowTypeToArrowSchema(List<RowType> rowTypes)
     {
         var fields = new List<Apache.Arrow.Field>();
-        
+
         foreach (var rowType in rowTypes)
         {
             var snowflakeType = new SnowflakeDataType
@@ -275,15 +275,15 @@ public class QueryExecutor : IQueryExecutor
                 Length = rowType.Length,
                 IsNullable = rowType.Nullable ?? true
             };
-            
+
             var arrowType = _typeConverter.ConvertSnowflakeTypeToArrow(snowflakeType);
-            
+
             fields.Add(new Apache.Arrow.Field(
                 rowType.Name ?? "column",
                 arrowType,
                 rowType.Nullable ?? true));
         }
-        
+
         return new Apache.Arrow.Schema(fields, null);
     }
 
@@ -293,17 +293,17 @@ public class QueryExecutor : IQueryExecutor
     {
         // Create Arrow arrays from the rowset
         var recordBatches = new List<Apache.Arrow.RecordBatch>();
-        
+
         if (rowSet.Count > 0)
         {
             var builders = new List<Apache.Arrow.StringArray.Builder>();
-            
+
             // Create builders for each column
             for (int i = 0; i < schema.FieldsList.Count; i++)
             {
                 builders.Add(new Apache.Arrow.StringArray.Builder());
             }
-            
+
             // Add rows
             foreach (var row in rowSet)
             {
@@ -319,13 +319,13 @@ public class QueryExecutor : IQueryExecutor
                     }
                 }
             }
-            
+
             // Build arrays
             var arrays = builders.Select(b => b.Build()).ToArray();
             var recordBatch = new Apache.Arrow.RecordBatch(schema, arrays, rowSet.Count);
             recordBatches.Add(recordBatch);
         }
-        
+
         // Create a simple array stream implementation
         return new SimpleArrowArrayStream(schema, recordBatches);
     }
@@ -407,28 +407,28 @@ public class QueryExecutor : IQueryExecutor
     {
         [System.Text.Json.Serialization.JsonPropertyName("queryId")]
         public string? QueryId { get; set; }
-        
+
         [System.Text.Json.Serialization.JsonPropertyName("sqlState")]
         public string? SqlState { get; set; }
-        
+
         [System.Text.Json.Serialization.JsonPropertyName("rowtype")]
         public List<RowType>? RowType { get; set; }
-        
+
         [System.Text.Json.Serialization.JsonPropertyName("rowset")]
         public List<List<string>>? RowSet { get; set; }
-        
+
         [System.Text.Json.Serialization.JsonPropertyName("rowsetBase64")]
         public string? RowSetBase64 { get; set; }
-        
+
         [System.Text.Json.Serialization.JsonPropertyName("queryResultFormat")]
         public string? QueryResultFormat { get; set; }
-        
+
         [System.Text.Json.Serialization.JsonPropertyName("total")]
         public long? Total { get; set; }
-        
+
         [System.Text.Json.Serialization.JsonPropertyName("returned")]
         public long? Returned { get; set; }
-        
+
         [System.Text.Json.Serialization.JsonPropertyName("parameters")]
         public List<NameValueParameter>? Parameters { get; set; }
     }
@@ -437,19 +437,19 @@ public class QueryExecutor : IQueryExecutor
     {
         [System.Text.Json.Serialization.JsonPropertyName("name")]
         public string? Name { get; set; }
-        
+
         [System.Text.Json.Serialization.JsonPropertyName("type")]
         public string? Type { get; set; }
-        
+
         [System.Text.Json.Serialization.JsonPropertyName("length")]
         public int? Length { get; set; }
-        
+
         [System.Text.Json.Serialization.JsonPropertyName("precision")]
         public int? Precision { get; set; }
-        
+
         [System.Text.Json.Serialization.JsonPropertyName("scale")]
         public int? Scale { get; set; }
-        
+
         [System.Text.Json.Serialization.JsonPropertyName("nullable")]
         public bool? Nullable { get; set; }
     }
@@ -458,7 +458,7 @@ public class QueryExecutor : IQueryExecutor
     {
         [System.Text.Json.Serialization.JsonPropertyName("name")]
         public string? Name { get; set; }
-        
+
         [System.Text.Json.Serialization.JsonPropertyName("value")]
         public object? Value { get; set; }
     }
@@ -467,10 +467,10 @@ public class QueryExecutor : IQueryExecutor
     {
         [System.Text.Json.Serialization.JsonPropertyName("rowType")]
         public string? RowType { get; set; }
-        
+
         [System.Text.Json.Serialization.JsonPropertyName("url")]
         public string? Url { get; set; }
-        
+
         [System.Text.Json.Serialization.JsonPropertyName("format")]
         public string? Format { get; set; }
     }

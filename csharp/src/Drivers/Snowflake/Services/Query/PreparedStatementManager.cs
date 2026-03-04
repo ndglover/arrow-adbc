@@ -25,7 +25,7 @@ using Apache.Arrow.Adbc.Drivers.Snowflake.Services.Authentication;
 using Apache.Arrow.Adbc.Drivers.Snowflake.Services.Transport;
 using Apache.Arrow.Adbc.Drivers.Snowflake.Services.TypeConversion;
 
-namespace Apache.Arrow.Adbc.Drivers.Snowflake.Services;
+namespace Apache.Arrow.Adbc.Drivers.Snowflake.Services.Query;
 
 /// <summary>
 /// Manages prepared statements for Snowflake connections.
