@@ -22,7 +22,6 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Apache.Arrow.Adbc.Drivers.Snowflake.Services.Transport;
-using Apache.Arrow.Adbc.Drivers.Snowflake.Services.TypeConversion;
 using Microsoft.Extensions.Logging;
 
 namespace Apache.Arrow.Adbc.Drivers.Snowflake.Services.Query;
@@ -33,11 +32,9 @@ namespace Apache.Arrow.Adbc.Drivers.Snowflake.Services.Query;
 public class QueryExecutor : IQueryExecutor
 {
     private readonly IRestApiClient _apiClient;
-    private readonly ITypeConverter _typeConverter;
     private readonly string _accountUrl;
     private readonly ILogger<QueryExecutor> _logger;
     private const string QueryEndpoint = "/queries/v1/query-request";
-    private const string CancelEndpoint = "/queries/{0}/cancel";
 
     /// <summary>
     /// Initializes a new instance of the <see cref="QueryExecutor"/> class.
@@ -45,18 +42,18 @@ public class QueryExecutor : IQueryExecutor
     /// <param name="apiClient">The REST API client.</param>
     /// <param name="typeConverter">The type converter.</param>
     /// <param name="account">The Snowflake account identifier.</param>
+    /// <param name="logger">The ILogger instance for logging.</param>
     public QueryExecutor(
         IRestApiClient apiClient,
-        ITypeConverter typeConverter,
         string account,
         ILogger<QueryExecutor> logger)
     {
-        _apiClient = apiClient ?? throw new ArgumentNullException(nameof(apiClient));
-        _typeConverter = typeConverter ?? throw new ArgumentNullException(nameof(typeConverter));
-        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        ArgumentNullException.ThrowIfNull(apiClient);
+        ArgumentNullException.ThrowIfNull(logger);
+        ArgumentException.ThrowIfNullOrEmpty(account);
 
-        if (string.IsNullOrEmpty(account))
-            throw new ArgumentException("Account cannot be null or empty.", nameof(account));
+        _apiClient = apiClient;
+        _logger = logger;
 
         _accountUrl = account.Contains(".")
             ? $"https://{account}"
@@ -68,14 +65,9 @@ public class QueryExecutor : IQueryExecutor
         QueryRequest request,
         CancellationToken cancellationToken = default)
     {
-        if (request == null)
-            throw new ArgumentNullException(nameof(request));
-
-        if (string.IsNullOrEmpty(request.Statement))
-            throw new ArgumentException("Statement cannot be null or empty.", nameof(request));
-
-        if (request.AuthToken == null)
-            throw new ArgumentException("Authentication token is required.", nameof(request));
+        ArgumentNullException.ThrowIfNull(request);
+        ArgumentException.ThrowIfNullOrEmpty(request.Statement, nameof(request.Statement));
+        ArgumentNullException.ThrowIfNull(request.AuthToken);
 
         var stopwatch = Stopwatch.StartNew();
 
@@ -121,7 +113,7 @@ public class QueryExecutor : IQueryExecutor
                 {
                     Status = QueryStatus.Failed,
                     ExecutionTime = stopwatch.Elapsed,
-                    Errors = new System.Collections.Generic.List<QueryError>
+                    Errors = new List<QueryError>
                     {
                         new QueryError
                         {
@@ -137,6 +129,7 @@ public class QueryExecutor : IQueryExecutor
             // Debug: Check what format we received
             _logger.LogDebug("QueryResultFormat = {QueryResultFormat}", data.QueryResultFormat);
             _logger.LogDebug("Has RowSetBase64 = {HasRowSetBase64}", !string.IsNullOrEmpty(data.RowSetBase64));
+            _logger.LogDebug("Chunk Count = {ChunkCount}", data.Chunks?.Count ?? 0);
             _logger.LogDebug("Has RowSet = {HasRowSet}", data.RowSet != null);
             _logger.LogDebug("Has RowType = {HasRowType}", data.RowType != null);
 
@@ -155,22 +148,23 @@ public class QueryExecutor : IQueryExecutor
                 }
             }
 
-            // Check if we have Arrow format data
-            if (!string.IsNullOrEmpty(data.RowSetBase64))
+            // Check if we have Arrow format data in inline payload or remote chunks.
+            if (!string.IsNullOrEmpty(data.RowSetBase64) || (data.Chunks?.Count > 0))
             {
-                // Decode base64 Arrow data and stream batches to the caller instead of buffering them all in memory.
-                var arrowBytes = Convert.FromBase64String(data.RowSetBase64);
-                var stream = new System.IO.MemoryStream(arrowBytes);
-                var arrowReader = new Apache.Arrow.Ipc.ArrowStreamReader(stream);
-
-                var schema = arrowReader.Schema;
-                var arrayStream = new ArrowStreamArrayStream(stream, arrowReader);
+                var arrayStream = await ChunkedArrowArrayStream.CreateAsync(
+                    _apiClient,
+                    request.AuthToken,
+                    data.RowSetBase64,
+                    data.Chunks,
+                    data.ChunkHeaders,
+                    data.Qrmk,
+                    cancellationToken).ConfigureAwait(false);
 
                 return new QueryResult
                 {
                     StatementHandle = data.QueryId ?? string.Empty,
                     Status = QueryStatus.Success,
-                    Schema = schema,
+                    Schema = arrayStream.Schema,
                     ResultStream = arrayStream,
                     RowCount = data.Returned ?? 0,
                     ExecutionTime = stopwatch.Elapsed
@@ -186,14 +180,15 @@ public class QueryExecutor : IQueryExecutor
                     StatementHandle = data.QueryId ?? string.Empty,
                     Status = QueryStatus.Failed,
                     ExecutionTime = stopwatch.Elapsed,
-                    Errors = new System.Collections.Generic.List<QueryError>
-                    {
+                    Errors =
+                    [
                         new QueryError
                         {
                             ErrorCode = "UNSUPPORTED_FORMAT",
-                            Message = "JSON rowset/rowtype format is not supported. Request results in Arrow format (set DOTNET_QUERY_RESULT_FORMAT=ARROW)."
+                            Message =
+                                "JSON rowset/rowtype format is not supported. Request results in Arrow format (set DOTNET_QUERY_RESULT_FORMAT=ARROW)."
                         }
-                    }
+                    ]
                 };
             }
 
@@ -206,6 +201,16 @@ public class QueryExecutor : IQueryExecutor
                 ExecutionTime = stopwatch.Elapsed
             };
         }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            stopwatch.Stop();
+
+            return new QueryResult
+            {
+                Status = QueryStatus.Cancelled,
+                ExecutionTime = stopwatch.Elapsed
+            };
+        }
         catch (Exception ex)
         {
             stopwatch.Stop();
@@ -214,7 +219,7 @@ public class QueryExecutor : IQueryExecutor
             {
                 Status = QueryStatus.Failed,
                 ExecutionTime = stopwatch.Elapsed,
-                Errors = new System.Collections.Generic.List<QueryError>
+                Errors = new List<QueryError>
                 {
                     new QueryError
                     {
@@ -232,11 +237,8 @@ public class QueryExecutor : IQueryExecutor
         ParameterSet parameters,
         CancellationToken cancellationToken = default)
     {
-        if (statement == null)
-            throw new ArgumentNullException(nameof(statement));
-
-        if (parameters == null)
-            throw new ArgumentNullException(nameof(parameters));
+        ArgumentNullException.ThrowIfNull(statement);
+        ArgumentNullException.ThrowIfNull(parameters);
 
         var request = new QueryRequest
         {
@@ -250,155 +252,157 @@ public class QueryExecutor : IQueryExecutor
     /// <inheritdoc/>
     public async Task CancelQueryAsync(string queryId, CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrEmpty(queryId))
-            throw new ArgumentException("Query ID cannot be null or empty.", nameof(queryId));
+        ArgumentException.ThrowIfNullOrEmpty(queryId);
 
         throw new NotImplementedException("Query cancellation not yet implemented");
     }
 
-    private static QueryStatus ParseQueryStatus(string? statusUrl)
-    {
-        return QueryStatus.Success;
-    }
-
-    private Apache.Arrow.Schema ConvertRowTypeToArrowSchema(List<RowType> rowTypes)
-    {
-        var fields = new List<Apache.Arrow.Field>();
-
-        foreach (var rowType in rowTypes)
-        {
-            var snowflakeType = new SnowflakeDataType
-            {
-                TypeName = rowType.Type ?? "TEXT",
-                Precision = rowType.Precision,
-                Scale = rowType.Scale,
-                Length = rowType.Length,
-                IsNullable = rowType.Nullable ?? true
-            };
-
-            var arrowType = _typeConverter.ConvertSnowflakeTypeToArrow(snowflakeType);
-
-            fields.Add(new Apache.Arrow.Field(
-                rowType.Name ?? "column",
-                arrowType,
-                rowType.Nullable ?? true));
-        }
-
-        return new Apache.Arrow.Schema(fields, null);
-    }
-
-    private Apache.Arrow.Ipc.IArrowArrayStream ConvertRowSetToArrowStream(
-        Apache.Arrow.Schema schema,
-        List<List<string>> rowSet)
-    {
-        // Create Arrow arrays from the rowset
-        var recordBatches = new List<Apache.Arrow.RecordBatch>();
-
-        if (rowSet.Count > 0)
-        {
-            var builders = new List<Apache.Arrow.StringArray.Builder>();
-
-            // Create builders for each column
-            for (int i = 0; i < schema.FieldsList.Count; i++)
-            {
-                builders.Add(new Apache.Arrow.StringArray.Builder());
-            }
-
-            // Add rows
-            foreach (var row in rowSet)
-            {
-                for (int i = 0; i < row.Count && i < builders.Count; i++)
-                {
-                    if (row[i] == null)
-                    {
-                        builders[i].AppendNull();
-                    }
-                    else
-                    {
-                        builders[i].Append(row[i]);
-                    }
-                }
-            }
-
-            // Build arrays
-            var arrays = builders.Select(b => b.Build()).ToArray();
-            var recordBatch = new Apache.Arrow.RecordBatch(schema, arrays, rowSet.Count);
-            recordBatches.Add(recordBatch);
-        }
-
-        // Create a simple array stream implementation
-        return new SimpleArrowArrayStream(schema, recordBatches);
-    }
-
-    // Simple implementation of IArrowArrayStream for in-memory record batches
-    private class SimpleArrowArrayStream : Apache.Arrow.Ipc.IArrowArrayStream
-    {
-        private readonly Apache.Arrow.Schema _schema;
-        private readonly List<Apache.Arrow.RecordBatch> _batches;
-        private int _currentIndex = 0;
-
-        public SimpleArrowArrayStream(Apache.Arrow.Schema schema, List<Apache.Arrow.RecordBatch> batches)
-        {
-            _schema = schema;
-            _batches = batches;
-        }
-
-        public Apache.Arrow.Schema Schema => _schema;
-
-        public ValueTask<Apache.Arrow.RecordBatch?> ReadNextRecordBatchAsync(CancellationToken cancellationToken = default)
-        {
-            if (_currentIndex < _batches.Count)
-            {
-                return new ValueTask<Apache.Arrow.RecordBatch?>(_batches[_currentIndex++]);
-            }
-            return new ValueTask<Apache.Arrow.RecordBatch?>((Apache.Arrow.RecordBatch?)null);
-        }
-
-        public void Dispose()
-        {
-            foreach (var batch in _batches)
-            {
-                batch?.Dispose();
-            }
-        }
-    }
 
     // Streams Arrow batches from an ArrowStreamReader without buffering all batches in memory.
-    private class ArrowStreamArrayStream : Apache.Arrow.Ipc.IArrowArrayStream
+    private class ChunkedArrowArrayStream : Ipc.IArrowArrayStream
     {
-        private readonly System.IO.Stream _baseStream;
-        private readonly Apache.Arrow.Ipc.ArrowStreamReader _reader;
+        private readonly IRestApiClient _apiClient;
+        private readonly Services.Authentication.AuthenticationToken _authToken;
+        private readonly Dictionary<string, string>? _chunkHeaders;
+        private readonly string? _qrmk;
+        private readonly Queue<string> _chunkUrls;
+        private readonly SemaphoreSlim _gate = new(1, 1);
+        private System.IO.Stream _currentStream;
+        private Ipc.ArrowStreamReader _currentReader;
+        private bool _disposed;
 
-        public ArrowStreamArrayStream(System.IO.Stream baseStream, Apache.Arrow.Ipc.ArrowStreamReader reader)
+        private ChunkedArrowArrayStream(
+            IRestApiClient apiClient,
+            Services.Authentication.AuthenticationToken authToken,
+            Dictionary<string, string>? chunkHeaders,
+            string? qrmk,
+            Queue<string> chunkUrls,
+            System.IO.Stream currentStream,
+            Ipc.ArrowStreamReader currentReader)
         {
-            _baseStream = baseStream ?? throw new ArgumentNullException(nameof(baseStream));
-            _reader = reader ?? throw new ArgumentNullException(nameof(reader));
+            ArgumentNullException.ThrowIfNull(apiClient);
+            ArgumentNullException.ThrowIfNull(authToken);
+            ArgumentNullException.ThrowIfNull(chunkUrls);
+            ArgumentNullException.ThrowIfNull(currentStream);
+            ArgumentNullException.ThrowIfNull(currentReader);
+
+            _apiClient = apiClient;
+            _authToken = authToken;
+            _chunkHeaders = chunkHeaders;
+            _qrmk = qrmk;
+            _chunkUrls = chunkUrls;
+            _currentStream = currentStream;
+            _currentReader = currentReader;
         }
 
-        public Apache.Arrow.Schema Schema => _reader.Schema;
-
-        public ValueTask<Apache.Arrow.RecordBatch?> ReadNextRecordBatchAsync(CancellationToken cancellationToken = default)
+        public static async Task<ChunkedArrowArrayStream> CreateAsync(
+            IRestApiClient apiClient,
+            Services.Authentication.AuthenticationToken authToken,
+            string? rowSetBase64,
+            List<ChunkInfo>? chunks,
+            Dictionary<string, string>? chunkHeaders,
+            string? qrmk,
+            CancellationToken cancellationToken)
         {
-            try
+            ArgumentNullException.ThrowIfNull(apiClient);
+            ArgumentNullException.ThrowIfNull(authToken);
+
+            var chunkUrls = new Queue<string>((chunks ?? []).Select(c => c.Url).Where(u => !string.IsNullOrWhiteSpace(u)));
+
+            System.IO.Stream stream;
+            Ipc.ArrowStreamReader reader;
+
+            if (!string.IsNullOrEmpty(rowSetBase64))
             {
-                var batch = _reader.ReadNextRecordBatch();
-                return new ValueTask<Apache.Arrow.RecordBatch?>(batch);
+                var arrowBytes = Convert.FromBase64String(rowSetBase64);
+                stream = new System.IO.MemoryStream(arrowBytes);
+                reader = new Ipc.ArrowStreamReader(stream);
             }
-            catch
+            else if (chunkUrls.Count > 0)
             {
-                return new ValueTask<Apache.Arrow.RecordBatch?>((Apache.Arrow.RecordBatch?)null);
+                var url = chunkUrls.Dequeue();
+                stream = await apiClient.GetArrowStreamAsync(
+                    url,
+                    authToken,
+                    chunkHeaders,
+                    qrmk,
+                    cancellationToken).ConfigureAwait(false);
+                reader = new Ipc.ArrowStreamReader(stream);
             }
+            else
+            {
+                throw new InvalidOperationException("Arrow result format was requested, but neither rowsetBase64 nor chunks were present.");
+            }
+
+            return new ChunkedArrowArrayStream(
+                apiClient,
+                authToken,
+                chunkHeaders,
+                qrmk,
+                chunkUrls,
+                stream,
+                reader);
         }
 
-        public void Dispose()
+        public Schema Schema => _currentReader.Schema;
+
+        public async ValueTask<RecordBatch?> ReadNextRecordBatchAsync(CancellationToken cancellationToken = default)
         {
+            await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
-                _reader.Dispose();
+                while (true)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+
+                    var batch = await _currentReader.ReadNextRecordBatchAsync(cancellationToken);
+                    if (batch != null)
+                    {
+                        return batch;
+                    }
+
+                    if (_chunkUrls.Count == 0)
+                    {
+                        return null;
+                    }
+
+                    DisposeCurrentReaderAndStream();
+
+                    var nextUrl = _chunkUrls.Dequeue();
+                    _currentStream = await _apiClient.GetArrowStreamAsync(
+                        nextUrl,
+                        _authToken,
+                        _chunkHeaders,
+                        _qrmk,
+                        cancellationToken).ConfigureAwait(false);
+                    _currentReader = new Ipc.ArrowStreamReader(_currentStream);
+                }
             }
             finally
             {
-                _baseStream.Dispose();
+                _gate.Release();
+            }
+        }
+
+        public void Dispose()
+        {
+            if (_disposed)
+                return;
+
+            _disposed = true;
+            DisposeCurrentReaderAndStream();
+            _gate.Dispose();
+        }
+
+        private void DisposeCurrentReaderAndStream()
+        {
+            try
+            {
+                _currentReader?.Dispose();
+            }
+            finally
+            {
+                _currentStream?.Dispose();
             }
         }
     }
@@ -431,6 +435,30 @@ public class QueryExecutor : IQueryExecutor
 
         [System.Text.Json.Serialization.JsonPropertyName("parameters")]
         public List<NameValueParameter>? Parameters { get; set; }
+
+        [System.Text.Json.Serialization.JsonPropertyName("chunks")]
+        public List<ChunkInfo>? Chunks { get; set; }
+
+        [System.Text.Json.Serialization.JsonPropertyName("chunkHeaders")]
+        public Dictionary<string, string>? ChunkHeaders { get; set; }
+
+        [System.Text.Json.Serialization.JsonPropertyName("qrmk")]
+        public string? Qrmk { get; set; }
+    }
+
+    private class ChunkInfo
+    {
+        [System.Text.Json.Serialization.JsonPropertyName("url")]
+        public string Url { get; set; } = string.Empty;
+
+        [System.Text.Json.Serialization.JsonPropertyName("rowCount")]
+        public int RowCount { get; set; }
+
+        [System.Text.Json.Serialization.JsonPropertyName("uncompressedSize")]
+        public int UncompressedSize { get; set; }
+
+        [System.Text.Json.Serialization.JsonPropertyName("compressedSize")]
+        public int CompressedSize { get; set; }
     }
 
     private class RowType
@@ -463,15 +491,4 @@ public class QueryExecutor : IQueryExecutor
         public object? Value { get; set; }
     }
 
-    private class ResultSetMetaData
-    {
-        [System.Text.Json.Serialization.JsonPropertyName("rowType")]
-        public string? RowType { get; set; }
-
-        [System.Text.Json.Serialization.JsonPropertyName("url")]
-        public string? Url { get; set; }
-
-        [System.Text.Json.Serialization.JsonPropertyName("format")]
-        public string? Format { get; set; }
-    }
 }

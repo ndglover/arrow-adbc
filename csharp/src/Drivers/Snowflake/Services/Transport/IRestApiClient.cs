@@ -16,6 +16,7 @@
  */
 
 using System.IO;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Apache.Arrow.Adbc.Drivers.Snowflake.Services.Authentication;
@@ -52,6 +53,8 @@ public interface IRestApiClient
     Task<Stream> GetArrowStreamAsync(
         string url,
         AuthenticationToken token,
+        Dictionary<string, string>? chunkHeaders = null,
+        string? qrmk = null,
         CancellationToken cancellationToken = default);
 
     /// <summary>

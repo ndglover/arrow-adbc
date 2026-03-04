@@ -43,8 +43,8 @@ public sealed class SnowflakeConnection : AdbcConnection
     private IQueryExecutor? _queryExecutor;
     private PreparedStatementManager? _preparedStatementManager;
     private bool _disposed;
-    private readonly ILogger<SnowflakeConnection> _logger;    
-        
+    private readonly ILogger<SnowflakeConnection> _logger;
+
     private SnowflakeConnection(ConnectionConfig config, IConnectionPoolManager connectionPool, Dictionary<string,string> options,
         IPooledConnection pooledConnection, IQueryExecutor queryExecutor, PreparedStatementManager preparedStatementManager,
         ILogger<SnowflakeConnection> logger)
@@ -65,7 +65,8 @@ public sealed class SnowflakeConnection : AdbcConnection
     {
         ArgumentNullException.ThrowIfNull(config);
         ArgumentNullException.ThrowIfNull(connectionPool);
-        var log = loggerFactory.CreateLogger<SnowflakeConnection>();
+        loggerFactory ??= NullLoggerFactory.Instance;
+        var log =  loggerFactory.CreateLogger<SnowflakeConnection>();
 
         var options = new Dictionary<string, string>();
 
@@ -76,16 +77,16 @@ public sealed class SnowflakeConnection : AdbcConnection
             throw new InvalidOperationException("Failed to acquire pooled connection");
         }
         log.LogInformation("Acquired pooled connection {ConnectionId}", pooledConnection.ConnectionId);
-                
+
         var apiClient = new RestApiClient(httpClient, config.EnableCompression);
         var typeConverter = new TypeConverter();
 
-        
-        var queryExecutor = new QueryExecutor(apiClient, typeConverter, config.Account, loggerFactory.CreateLogger<QueryExecutor>());
+
+        var queryExecutor = new QueryExecutor(apiClient, config.Account, loggerFactory.CreateLogger<QueryExecutor>());
         var preparedStatementManager = new PreparedStatementManager(apiClient, typeConverter, config.Account);
 
         return new SnowflakeConnection(config, connectionPool, options, pooledConnection, queryExecutor, preparedStatementManager, log);
-    }    
+    }
 
     /// <summary>AdbcDatabaseAdbcDatabase
     /// Creates a new statement for executing queries.
@@ -94,10 +95,10 @@ public sealed class SnowflakeConnection : AdbcConnection
     public override AdbcStatement CreateStatement()
     {
         ThrowIfDisposed();
-        
+
         if (_pooledConnection == null || _queryExecutor == null || _preparedStatementManager == null)
             throw new InvalidOperationException("Connection is not properly initialized.");
-        
+
         return new SnowflakeStatement(_config, _pooledConnection, _queryExecutor, _preparedStatementManager);
     }
 
@@ -109,7 +110,7 @@ public sealed class SnowflakeConnection : AdbcConnection
     public override void SetOption(string key, string value)
     {
         ThrowIfDisposed();
-        
+
         ArgumentException.ThrowIfNullOrWhiteSpace(key);
 
         _options[key] = value ?? string.Empty;
@@ -135,7 +136,7 @@ public sealed class SnowflakeConnection : AdbcConnection
     public override Schema GetTableSchema(string? catalog, string? dbSchema, string tableName)
     {
         ThrowIfDisposed();
-        
+
         ArgumentException.ThrowIfNullOrWhiteSpace(tableName);
 
         throw new NotImplementedException("GetTableSchema not yet implemented");
@@ -151,7 +152,7 @@ public sealed class SnowflakeConnection : AdbcConnection
     /// <param name="tableTypes">The table types to include.</param>
     /// <param name="columnNamePattern">The column pattern filter.</param>
     /// <returns>An IArrowArrayStream containing the database objects.</returns>
-    public override IArrowArrayStream GetObjects(GetObjectsDepth depth, string? catalogPattern, string? dbSchemaPattern, 
+    public override IArrowArrayStream GetObjects(GetObjectsDepth depth, string? catalogPattern, string? dbSchemaPattern,
         string? tableNamePattern, IReadOnlyList<string>? tableTypes, string? columnNamePattern)
     {
         ThrowIfDisposed();

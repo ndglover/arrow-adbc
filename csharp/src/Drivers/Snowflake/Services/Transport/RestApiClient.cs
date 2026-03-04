@@ -18,6 +18,7 @@
 using System;
 using System.IO;
 using System.IO.Compression;
+using System.Collections.Generic;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
@@ -86,6 +87,8 @@ public class RestApiClient : IRestApiClient
     public async Task<Stream> GetArrowStreamAsync(
         string url,
         AuthenticationToken token,
+        Dictionary<string, string>? chunkHeaders = null,
+        string? qrmk = null,
         CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(url, nameof(url));
@@ -94,7 +97,25 @@ public class RestApiClient : IRestApiClient
         return await ExecuteWithRetryAsync(async () =>
         {
             using var requestMessage = new HttpRequestMessage(HttpMethod.Get, url);
-            ConfigureRequest(requestMessage, token);
+            if (chunkHeaders == null && string.IsNullOrEmpty(qrmk))
+            {
+                ConfigureRequest(requestMessage, token);
+            }
+            else
+            {
+                if (chunkHeaders != null)
+                {
+                    foreach (var header in chunkHeaders)
+                    {
+                        requestMessage.Headers.TryAddWithoutValidation(header.Key, header.Value);
+                    }
+                }
+                else
+                {
+                    requestMessage.Headers.TryAddWithoutValidation("x-amz-server-side-encryption-customer-algorithm", "AES256");
+                    requestMessage.Headers.TryAddWithoutValidation("x-amz-server-side-encryption-customer-key", qrmk);
+                }
+            }
             
             requestMessage.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/vnd.apache.arrow.stream"));
 

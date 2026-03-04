@@ -17,7 +17,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Threading.Tasks;
 using Apache.Arrow.Adbc.Drivers.Snowflake;
 using FluentAssertions;
 using NUnit.Framework;
@@ -33,6 +32,26 @@ public class SnowflakeDriverTests
     public void SetUp()
     {
         _driver = new SnowflakeDriver();
+    }
+
+    [Test]
+    public void OpenAsync_WithValidParameters_ShouldReturnDatabase()
+    {
+        // Arrange
+        var parameters = new Dictionary<string, string>
+        {
+            ["account"] = "testaccount",
+            ["user"] = "testuser",
+            ["password"] = "testpass"
+        };
+
+        // Act
+        using SnowflakeDatabase database = (SnowflakeDatabase)_driver.Open(parameters);
+        using var connection = database.ConnectAsync(new Dictionary<string, string>()).GetAwaiter().GetResult();
+
+        // Assert
+        connection.Should().NotBeNull();
+        connection.Should().BeOfType<SnowflakeConnection>();
     }
 
     [TearDown]
@@ -64,8 +83,8 @@ public class SnowflakeDriverTests
         // Arrange
         var parameters = new Dictionary<string, string>
         {
-            ["adbc.snowflake.sql.account"] = "testaccount",
-            ["username"] = "testuser",
+            ["account"] = "testaccount",
+            ["user"] = "testuser",
             ["password"] = "testpass"
         };
 
