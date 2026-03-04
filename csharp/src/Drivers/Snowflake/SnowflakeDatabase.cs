@@ -41,6 +41,8 @@ public sealed class SnowflakeDatabase : AdbcDatabase
     /// Initializes a new instance of the <see cref="SnowflakeDatabase"/> class.
     /// </summary>
     /// <param name="parameters">The ADBC connection parameters.</param>
+    /// <param name="httpClient">Custom HttpClient support</param>
+    /// <param name="loggerFactory">Custom ILoggerFactory</param>
     public SnowflakeDatabase(IReadOnlyDictionary<string, string>? parameters = null, HttpClient? httpClient = null, ILoggerFactory? loggerFactory = null)
     {
         _parameters = parameters;
@@ -73,7 +75,6 @@ public sealed class SnowflakeDatabase : AdbcDatabase
     public async Task<AdbcConnection> ConnectAsync(IReadOnlyDictionary<string, string>? parameters)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
-
         var config = ConnectionStringParser.ParseParameters(parameters, _parameters);
         return await SnowflakeConnection.CreateAsync(config, _httpClient, _connectionPool, _loggerFactory).ConfigureAwait(false);
     }
