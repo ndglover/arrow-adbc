@@ -20,7 +20,7 @@ namespace Apache.Arrow.Adbc.Drivers.Snowflake.Services.TypeConversion;
 /// <summary>
 /// Represents a Snowflake result set.
 /// </summary>
-public class SnowflakeResultSet
+internal class SnowflakeResultSet
 {
     /// <summary>
     /// Gets or sets the column metadata.

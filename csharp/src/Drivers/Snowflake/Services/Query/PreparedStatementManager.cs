@@ -30,7 +30,7 @@ namespace Apache.Arrow.Adbc.Drivers.Snowflake.Services.Query;
 /// <summary>
 /// Manages prepared statements for Snowflake connections.
 /// </summary>
-public class PreparedStatementManager
+internal class PreparedStatementManager
 {
     private readonly IRestApiClient _apiClient;
     private readonly ITypeConverter _typeConverter;

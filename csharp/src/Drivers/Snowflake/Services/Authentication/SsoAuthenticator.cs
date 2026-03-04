@@ -29,7 +29,7 @@ namespace Apache.Arrow.Adbc.Drivers.Snowflake.Services.Authentication;
 /// <summary>
 /// Implements Single Sign-On (SSO) authentication for Snowflake using external browser.
 /// </summary>
-public class SsoAuthenticator : ISsoAuthenticator
+internal class SsoAuthenticator : ISsoAuthenticator
 {
     private readonly HttpClient _httpClient;
     private const string LoginEndpoint = "/session/v1/login-request";

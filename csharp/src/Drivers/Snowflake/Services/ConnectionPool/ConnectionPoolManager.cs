@@ -29,7 +29,7 @@ namespace Apache.Arrow.Adbc.Drivers.Snowflake.Services.ConnectionPool;
 /// <summary>
 /// Implements connection pooling for Snowflake connections.
 /// </summary>
-public class ConnectionPoolManager : IConnectionPoolManager, IDisposable
+internal class ConnectionPoolManager : IConnectionPoolManager, IDisposable
 {
     private readonly IAuthenticationService _authService;
     private readonly ConcurrentDictionary<string, ConnectionPoolEntry> _pools;

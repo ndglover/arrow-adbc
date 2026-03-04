@@ -29,7 +29,7 @@ namespace Apache.Arrow.Adbc.Drivers.Snowflake.Services.Authentication;
 /// <summary>
 /// Implements basic username/password authentication for Snowflake.
 /// </summary>
-public class BasicAuthenticator : IBasicAuthenticator
+internal class BasicAuthenticator : IBasicAuthenticator
 {
     private readonly HttpClient _httpClient;
     private const string LoginEndpoint = "/session/v1/login-request";

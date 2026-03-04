@@ -25,7 +25,7 @@ namespace Apache.Arrow.Adbc.Drivers.Snowflake.Configuration;
 /// <summary>
 /// Parses ADBC parameters into ConnectionConfig objects.
 /// </summary>
-public static class ConnectionStringParser
+internal static class ConnectionStringParser
 {
     /// <summary>
     /// Parses ADBC parameters with connection-specific overrides into a ConnectionConfig object.

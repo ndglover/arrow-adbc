@@ -23,7 +23,7 @@ namespace Apache.Arrow.Adbc.Drivers.Snowflake.Services.Authentication;
 /// <summary>
 /// Provides RSA key pair authentication for Snowflake.
 /// </summary>
-public interface IKeyPairAuthenticator
+internal interface IKeyPairAuthenticator
 {
     /// <summary>
     /// Authenticates using RSA key pair.

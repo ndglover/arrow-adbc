@@ -21,7 +21,7 @@ namespace Apache.Arrow.Adbc.Drivers.Snowflake.Services.Transport;
 /// Represents an API response from Snowflake.
 /// </summary>
 /// <typeparam name="T">The response data type.</typeparam>
-public class ApiResponse<T>
+internal class ApiResponse<T>
 {
     /// <summary>
     /// Gets or sets a value indicating whether the request was successful.

@@ -22,7 +22,7 @@ namespace Apache.Arrow.Adbc.Drivers.Snowflake.Services.ConnectionPool;
 /// <summary>
 /// Represents connection pool statistics.
 /// </summary>
-public class PoolStatistics
+internal class PoolStatistics
 {
     /// <summary>
     /// Gets or sets the total number of connections in the pool.

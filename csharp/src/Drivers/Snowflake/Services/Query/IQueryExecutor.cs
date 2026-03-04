@@ -27,7 +27,7 @@ namespace Apache.Arrow.Adbc.Drivers.Snowflake.Services.Query;
 /// <summary>
 /// Provides query execution services for Snowflake connections.
 /// </summary>
-public interface IQueryExecutor
+internal interface IQueryExecutor
 {
     /// <summary>
     /// Executes a query and returns the result.
@@ -58,7 +58,7 @@ public interface IQueryExecutor
 /// <summary>
 /// Represents a query execution request.
 /// </summary>
-public class QueryRequest
+internal class QueryRequest
 {
     /// <summary>
     /// Gets or sets the SQL statement to execute.
@@ -114,7 +114,7 @@ public class QueryRequest
 /// <summary>
 /// Represents the result of a query execution.
 /// </summary>
-public class QueryResult
+internal class QueryResult
 {
     /// <summary>
     /// Gets or sets the statement handle for the executed query.
@@ -160,7 +160,7 @@ public class QueryResult
 /// <summary>
 /// Represents a prepared statement.
 /// </summary>
-public class PreparedStatement
+internal class PreparedStatement
 {
     /// <summary>
     /// Gets or sets the statement handle.
@@ -186,7 +186,7 @@ public class PreparedStatement
 /// <summary>
 /// Represents a set of parameters for a prepared statement.
 /// </summary>
-public class ParameterSet
+internal class ParameterSet
 {
     /// <summary>
     /// Gets or sets the parameter values.
@@ -202,7 +202,7 @@ public class ParameterSet
 /// <summary>
 /// Represents query execution status.
 /// </summary>
-public enum QueryStatus
+internal enum QueryStatus
 {
     /// <summary>
     /// Query is queued for execution.
@@ -233,7 +233,7 @@ public enum QueryStatus
 /// <summary>
 /// Represents the result format for queries.
 /// </summary>
-public enum ResultFormat
+internal enum ResultFormat
 {
     /// <summary>
     /// Apache Arrow format version 1.
@@ -249,7 +249,7 @@ public enum ResultFormat
 /// <summary>
 /// Represents a query execution error.
 /// </summary>
-public class QueryError
+internal class QueryError
 {
     /// <summary>
     /// Gets or sets the error code.

@@ -23,7 +23,7 @@ namespace Apache.Arrow.Adbc.Drivers.Snowflake.Configuration;
 /// <summary>
 /// Represents connection pool configuration parameters.
 /// </summary>
-public class ConnectionPoolConfig
+internal class ConnectionPoolConfig
 {
     /// <summary>
     /// Gets or sets the maximum number of connections in the pool.

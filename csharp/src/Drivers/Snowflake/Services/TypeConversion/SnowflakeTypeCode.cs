@@ -20,7 +20,7 @@ namespace Apache.Arrow.Adbc.Drivers.Snowflake.Services.TypeConversion;
 /// <summary>
 /// Snowflake type codes.
 /// </summary>
-public enum SnowflakeTypeCode
+internal enum SnowflakeTypeCode
 {
     Unknown,
     Number,

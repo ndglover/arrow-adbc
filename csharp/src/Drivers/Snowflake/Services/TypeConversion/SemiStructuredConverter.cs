@@ -26,7 +26,7 @@ namespace Apache.Arrow.Adbc.Drivers.Snowflake.Services.TypeConversion;
 /// <summary>
 /// Handles conversion of Snowflake semi-structured data types (VARIANT, OBJECT, ARRAY).
 /// </summary>
-public class SemiStructuredConverter
+internal class SemiStructuredConverter
 {
     /// <summary>
     /// Converts a Snowflake VARIANT value to an Arrow representation.

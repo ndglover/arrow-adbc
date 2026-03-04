@@ -20,7 +20,7 @@ namespace Apache.Arrow.Adbc.Drivers.Snowflake.Services.TypeConversion;
 /// <summary>
 /// Represents a parameter set for Snowflake query execution.
 /// </summary>
-public class ParameterSet
+internal class ParameterSet
 {
     /// <summary>
     /// Gets or sets the parameters.

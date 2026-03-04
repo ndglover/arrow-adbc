@@ -23,7 +23,7 @@ namespace Apache.Arrow.Adbc.Drivers.Snowflake.Services.Transport;
 /// <summary>
 /// Builds requests for Snowflake SQL API.
 /// </summary>
-public class RequestBuilder
+internal class RequestBuilder
 {
     /// <summary>
     /// Builds a query execution request.

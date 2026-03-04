@@ -22,7 +22,7 @@ namespace Apache.Arrow.Adbc.Drivers.Snowflake.Services.Authentication;
 /// <summary>
 /// Represents an authentication token for Snowflake connections.
 /// </summary>
-public class AuthenticationToken
+internal class AuthenticationToken
 {
     /// <summary>
     /// Gets or sets the JWT access token.

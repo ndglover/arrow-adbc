@@ -27,7 +27,7 @@ namespace Apache.Arrow.Adbc.Drivers.Snowflake.Services.Authentication;
 /// <summary>
 /// Provides authentication services for Snowflake connections.
 /// </summary>
-public class AuthenticationService : IAuthenticationService
+internal class AuthenticationService : IAuthenticationService
 {
     private readonly IBasicAuthenticator _basicAuth;
     private readonly IKeyPairAuthenticator _keyPairAuth;

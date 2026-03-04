@@ -23,7 +23,7 @@ namespace Apache.Arrow.Adbc.Drivers.Snowflake.Services.Authentication;
 /// <summary>
 /// Provides OAuth 2.0 authentication for Snowflake.
 /// </summary>
-public interface IOAuthAuthenticator
+internal interface IOAuthAuthenticator
 {
     /// <summary>
     /// Authenticates using OAuth 2.0 token.

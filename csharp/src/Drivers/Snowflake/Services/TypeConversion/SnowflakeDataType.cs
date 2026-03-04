@@ -20,7 +20,7 @@ namespace Apache.Arrow.Adbc.Drivers.Snowflake.Services.TypeConversion;
 /// <summary>
 /// Represents a Snowflake data type with metadata.
 /// </summary>
-public class SnowflakeDataType
+internal class SnowflakeDataType
 {
     /// <summary>
     /// Gets or sets the type name.

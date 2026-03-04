@@ -24,7 +24,7 @@ namespace Apache.Arrow.Adbc.Drivers.Snowflake.Services.Authentication;
 /// <summary>
 /// Provides basic username/password authentication for Snowflake.
 /// </summary>
-public interface IBasicAuthenticator
+internal interface IBasicAuthenticator
 {
     /// <summary>
     /// Authenticates using username and password.

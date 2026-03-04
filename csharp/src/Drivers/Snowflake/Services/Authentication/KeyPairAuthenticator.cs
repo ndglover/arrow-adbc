@@ -30,7 +30,7 @@ namespace Apache.Arrow.Adbc.Drivers.Snowflake.Services.Authentication;
 /// <summary>
 /// Implements RSA key pair authentication for Snowflake.
 /// </summary>
-public class KeyPairAuthenticator : IKeyPairAuthenticator
+internal class KeyPairAuthenticator : IKeyPairAuthenticator
 {
     private readonly HttpClient _httpClient;
     private const string LoginEndpoint = "/session/v1/login-request";

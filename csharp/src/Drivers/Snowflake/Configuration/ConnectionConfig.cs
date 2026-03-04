@@ -23,7 +23,7 @@ namespace Apache.Arrow.Adbc.Drivers.Snowflake.Configuration;
 /// <summary>
 /// Represents connection configuration parameters for Snowflake ADBC driver.
 /// </summary>
-public class ConnectionConfig
+internal class ConnectionConfig
 {
     /// <summary>
     /// Gets or sets the Snowflake account identifier.

@@ -28,7 +28,7 @@ namespace Apache.Arrow.Adbc.Drivers.Snowflake.Services.Query;
 /// <summary>
 /// Implements query execution for Snowflake connections.
 /// </summary>
-public class QueryExecutor : IQueryExecutor
+internal class QueryExecutor : IQueryExecutor
 {
     private readonly IRestApiClient _apiClient;
     private readonly string _accountUrl;

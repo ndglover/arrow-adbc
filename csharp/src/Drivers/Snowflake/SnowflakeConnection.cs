@@ -61,7 +61,7 @@ public sealed class SnowflakeConnection : AdbcConnection
     /// <summary>
     /// Asynchronously creates and initializes a new SnowflakeConnection.
     /// </summary>
-    public static async Task<SnowflakeConnection> CreateAsync(ConnectionConfig config, HttpClient httpClient, IConnectionPoolManager connectionPool, ILoggerFactory? loggerFactory = null)
+    internal static async Task<SnowflakeConnection> CreateAsync(ConnectionConfig config, HttpClient httpClient, IConnectionPoolManager connectionPool, ILoggerFactory? loggerFactory = null)
     {
         ArgumentNullException.ThrowIfNull(config);
         ArgumentNullException.ThrowIfNull(connectionPool);

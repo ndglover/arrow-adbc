@@ -26,7 +26,7 @@ namespace Apache.Arrow.Adbc.Drivers.Snowflake.Services.ConnectionPool;
 /// <summary>
 /// Represents a pooled Snowflake connection.
 /// </summary>
-public class PooledConnection : IPooledConnection
+internal class PooledConnection : IPooledConnection
 {
     private DateTimeOffset _lastUsedAt;
     private bool _disposed;

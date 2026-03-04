@@ -23,7 +23,7 @@ namespace Apache.Arrow.Adbc.Drivers.Snowflake.Configuration;
 /// <summary>
 /// Represents authentication configuration for Snowflake connections.
 /// </summary>
-public class AuthenticationConfig
+internal class AuthenticationConfig
 {
     /// <summary>
     /// Gets or sets the authentication type.
@@ -118,7 +118,7 @@ public class AuthenticationConfig
 /// <summary>
 /// Represents the available authentication types for Snowflake.
 /// </summary>
-public enum AuthenticationType
+internal enum AuthenticationType
 {
     /// <summary>
     /// Username and password authentication.

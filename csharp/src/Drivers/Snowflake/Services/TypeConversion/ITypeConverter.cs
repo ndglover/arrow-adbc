@@ -22,7 +22,7 @@ namespace Apache.Arrow.Adbc.Drivers.Snowflake.Services.TypeConversion;
 /// <summary>
 /// Converts between Snowflake and Arrow data types.
 /// </summary>
-public interface ITypeConverter
+internal interface ITypeConverter
 {
     /// <summary>
     /// Converts a Snowflake data type to an Arrow type.

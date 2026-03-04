@@ -32,7 +32,7 @@ namespace Apache.Arrow.Adbc.Drivers.Snowflake.Services.Transport;
 /// <summary>
 /// Implements HTTP communication with Snowflake's REST API.
 /// </summary>
-public class RestApiClient : IRestApiClient
+internal class RestApiClient : IRestApiClient
 {
     private readonly HttpClient _httpClient;
     private readonly bool _enableCompression;

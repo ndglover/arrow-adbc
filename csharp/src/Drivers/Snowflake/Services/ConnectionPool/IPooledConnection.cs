@@ -26,7 +26,7 @@ namespace Apache.Arrow.Adbc.Drivers.Snowflake.Services.ConnectionPool;
 /// <summary>
 /// Represents a pooled connection.
 /// </summary>
-public interface IPooledConnection : IDisposable
+internal interface IPooledConnection : IDisposable
 {
     /// <summary>
     /// Gets the connection ID.

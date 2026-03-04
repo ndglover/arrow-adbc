@@ -26,7 +26,7 @@ namespace Apache.Arrow.Adbc.Drivers.Snowflake.Services.Transport;
 /// <summary>
 /// Provides HTTP communication with Snowflake's REST API.
 /// </summary>
-public interface IRestApiClient
+internal interface IRestApiClient
 {
     /// <summary>
     /// Sends a POST request to the specified endpoint.

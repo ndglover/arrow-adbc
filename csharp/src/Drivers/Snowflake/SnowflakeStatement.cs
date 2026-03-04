@@ -46,7 +46,7 @@ public sealed class SnowflakeStatement : AdbcStatement
     /// <param name="pooledConnection">The pooled connection.</param>
     /// <param name="queryExecutor">The query executor.</param>
     /// <param name="preparedStatementManager">The prepared statement manager.</param>
-    public SnowflakeStatement(
+    internal SnowflakeStatement(
         ConnectionConfig config,
         IPooledConnection pooledConnection,
         IQueryExecutor queryExecutor,
