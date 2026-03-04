@@ -54,26 +54,24 @@ internal class SnowflakeTestingUtils
     /// </summary>
     private static SnowflakeTestConfiguration TryLoadFromEnvironmentVariables()
     {
-        var config = new SnowflakeTestConfiguration();
-
-        // Required parameters
-        config.Account = Environment.GetEnvironmentVariable("SNOWFLAKE_ACCOUNT") ?? string.Empty;
-        config.User = Environment.GetEnvironmentVariable("SNOWFLAKE_USER") ?? string.Empty;
-        config.Password = Environment.GetEnvironmentVariable("SNOWFLAKE_PASSWORD") ?? string.Empty;
-
-        // Optional parameters
-        config.Database = Environment.GetEnvironmentVariable("SNOWFLAKE_DATABASE") ?? string.Empty;
-        config.Schema = Environment.GetEnvironmentVariable("SNOWFLAKE_SCHEMA") ?? string.Empty;
-        config.Warehouse = Environment.GetEnvironmentVariable("SNOWFLAKE_WAREHOUSE") ?? string.Empty;
-        config.Role = Environment.GetEnvironmentVariable("SNOWFLAKE_ROLE") ?? string.Empty;
-        config.Host = Environment.GetEnvironmentVariable("SNOWFLAKE_HOST") ?? string.Empty;
-        
-        // Query for testing (defaults to simple SELECT if not provided)
-        config.Query = Environment.GetEnvironmentVariable("SNOWFLAKE_QUERY") ?? "SELECT 1 as TESTCOL";
+        var config = new SnowflakeTestConfiguration
+        {
+            // Required parameters
+            Account = Environment.GetEnvironmentVariable("SNOWFLAKE_ACCOUNT") ?? string.Empty, User = Environment.GetEnvironmentVariable("SNOWFLAKE_USER") ?? string.Empty,
+            Password = Environment.GetEnvironmentVariable("SNOWFLAKE_PASSWORD") ?? string.Empty,
+            // Optional parameters
+            Database = Environment.GetEnvironmentVariable("SNOWFLAKE_DATABASE") ?? string.Empty,
+            Schema = Environment.GetEnvironmentVariable("SNOWFLAKE_SCHEMA") ?? string.Empty,
+            Warehouse = Environment.GetEnvironmentVariable("SNOWFLAKE_WAREHOUSE") ?? string.Empty,
+            Role = Environment.GetEnvironmentVariable("SNOWFLAKE_ROLE") ?? string.Empty,
+            Host = Environment.GetEnvironmentVariable("SNOWFLAKE_HOST") ?? string.Empty,
+            // Query for testing (defaults to simple SELECT if not provided)
+            Query = Environment.GetEnvironmentVariable("SNOWFLAKE_QUERY") ?? "SELECT 1 as TESTCOL"
+        };
 
         // If we have the basic required parameters, set up default authentication
-        if (!string.IsNullOrEmpty(config.Account) && 
-            !string.IsNullOrEmpty(config.User) && 
+        if (!string.IsNullOrEmpty(config.Account) &&
+            !string.IsNullOrEmpty(config.User) &&
             !string.IsNullOrEmpty(config.Password))
         {
             config.Authentication.Default = new DefaultAuthentication
@@ -113,7 +111,7 @@ internal class SnowflakeTestingUtils
         {
             parameters["username"] = Parameter(testConfiguration.Authentication.SnowflakeJwt.User, "user");
             parameters["adbc.snowflake.sql.auth_type"] = "jwt";
-            
+
             if (!string.IsNullOrWhiteSpace(testConfiguration.Authentication.SnowflakeJwt.PrivateKeyFile))
             {
                 parameters["adbc.snowflake.sql.client_option.jwt_private_key_pkcs8_value"] = testConfiguration.Authentication.SnowflakeJwt.PrivateKeyFile;

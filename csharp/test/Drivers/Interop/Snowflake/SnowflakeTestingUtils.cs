@@ -61,6 +61,15 @@ namespace Apache.Arrow.Adbc.Tests.Drivers.Interop.Snowflake
 
         static SnowflakeTestingUtils()
         {
+            // Try loading from individual environment variables first.
+            TestConfiguration = TryLoadFromEnvironmentVariables();
+
+            if (!string.IsNullOrEmpty(TestConfiguration.Account))
+            {
+                CurrentAssembly = Assembly.GetExecutingAssembly();
+                return;
+            }
+
             try
             {
                 TestConfiguration = Utils.LoadTestConfiguration<SnowflakeTestConfiguration>(SnowflakeTestingUtils.SNOWFLAKE_TEST_CONFIG_VARIABLE);
@@ -72,6 +81,45 @@ namespace Apache.Arrow.Adbc.Tests.Drivers.Interop.Snowflake
             }
 
             CurrentAssembly = Assembly.GetExecutingAssembly();
+        }
+
+        /// <summary>
+        /// Attempts to load configuration from individual environment variables.
+        /// This allows tests to run without requiring a JSON config file.
+        /// </summary>
+        private static SnowflakeTestConfiguration TryLoadFromEnvironmentVariables()
+        {
+            SnowflakeTestConfiguration config = new SnowflakeTestConfiguration();
+
+            // Required parameters
+            config.Account = Environment.GetEnvironmentVariable("SNOWFLAKE_ACCOUNT") ?? string.Empty;
+            config.User = Environment.GetEnvironmentVariable("SNOWFLAKE_USER") ?? string.Empty;
+            config.Password = Environment.GetEnvironmentVariable("SNOWFLAKE_PASSWORD") ?? string.Empty;
+
+            // Optional parameters
+            config.Database = Environment.GetEnvironmentVariable("SNOWFLAKE_DATABASE") ?? string.Empty;
+            config.Warehouse = Environment.GetEnvironmentVariable("SNOWFLAKE_WAREHOUSE") ?? string.Empty;
+            config.Host = Environment.GetEnvironmentVariable("SNOWFLAKE_HOST") ?? string.Empty;
+
+            string schema = Environment.GetEnvironmentVariable("SNOWFLAKE_SCHEMA") ?? string.Empty;
+            if (!string.IsNullOrWhiteSpace(schema))
+            {
+                config.Metadata.Schema = schema;
+            }
+
+            // If we have the basic required parameters, set up default authentication.
+            if (!string.IsNullOrEmpty(config.Account) &&
+                !string.IsNullOrEmpty(config.User) &&
+                !string.IsNullOrEmpty(config.Password))
+            {
+                config.Authentication.Default = new DefaultAuthentication
+                {
+                    User = config.User,
+                    Password = config.Password
+                };
+            }
+
+            return config;
         }
 
         /// <summary>
